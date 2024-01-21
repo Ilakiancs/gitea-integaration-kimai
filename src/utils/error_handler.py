@@ -54,6 +54,7 @@ class RecoveryStrategy(Enum):
     CIRCUIT_BREAKER = "circuit_breaker"
     MANUAL_INTERVENTION = "manual_intervention"
     IGNORE = "ignore"
+    LOG_CONTEXT = "log_context"
 
 @dataclass
 class ErrorInfo:
