@@ -25,6 +25,7 @@ class RateLimiter:
         self.time_window = time_window  # in seconds
         self.requests = deque()
         self.lock = threading.RLock()
+        self.burst_threshold = max_requests * 0.8  # 80% of limit triggers burst protection
 
     def can_proceed(self, identifier: str = "default") -> bool:
         """Check if request can proceed."""
