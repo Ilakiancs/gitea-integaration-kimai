@@ -67,6 +67,7 @@ class Scheduler:
 
     def __init__(self):
         """Initialize the scheduler."""
+        self.running = False
         self.enabled = SCHEDULER_ENABLED
         self.interval = SCHEDULER_INTERVAL
         self.retry_interval = SCHEDULER_RETRY_INTERVAL
