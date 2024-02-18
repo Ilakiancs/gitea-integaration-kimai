@@ -53,6 +53,7 @@ class DataTransformer:
         self.rules: Dict[str, TransformationRule] = {}
         self.custom_validators: Dict[str, Callable] = {}
         self.custom_converters: Dict[str, Callable] = {}
+        self.validation_errors: List[str] = []
         self._register_default_converters()
         self._register_default_validators()
 
