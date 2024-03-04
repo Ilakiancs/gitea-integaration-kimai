@@ -46,7 +46,9 @@ class GiteaKimaiClient:
         self.username = username
         self.password = password
         self.session = requests.Session()
-        self.session.timeout = 30
+        self.default_timeout = 30
+        self.session.timeout = self.default_timeout
+        self.timeout_retries = 3
         # Configure retry strategy for network issues
         from requests.adapters import HTTPAdapter
         from urllib3.util.retry import Retry
