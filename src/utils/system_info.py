@@ -24,7 +24,7 @@ def get_resource_usage() -> Dict[str, Any]:
     """Get current resource usage."""
     memory = psutil.virtual_memory()
     cpu = psutil.cpu_percent(interval=1)
-    
+
     return {
         'cpu_percent': cpu,
         'memory_percent': memory.percent,
@@ -34,3 +34,21 @@ def get_resource_usage() -> Dict[str, Any]:
         'load_average': psutil.getloadavg()[0] if hasattr(psutil, 'getloadavg') else 0
     }
 def get_process_count(): return len(psutil.pids())
+
+def get_memory_stats() -> Dict[str, Any]:
+    """Get detailed memory statistics."""
+    memory = psutil.virtual_memory()
+    swap = psutil.swap_memory()
+
+    return {
+        'total_memory': memory.total,
+        'available_memory': memory.available,
+        'used_memory': memory.used,
+        'free_memory': memory.free,
+        'memory_percent': memory.percent,
+        'cached_memory': memory.cached,
+        'buffers': memory.buffers,
+        'swap_total': swap.total,
+        'swap_used': swap.used,
+        'swap_percent': swap.percent
+    }
