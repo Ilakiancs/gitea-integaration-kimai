@@ -23,6 +23,9 @@ class MetricsCollector:
     def __init__(self, db_path: str = "metrics.db"):
         self.db_path = db_path
         self.lock = threading.Lock()
+        self.streaming_enabled = True
+        self.metrics_stream = []
+        self.max_stream_size = 1000
         self.init_database()
 
     def init_database(self):
