@@ -31,6 +31,8 @@ class PoolStats:
     total_requests: int = 0
     failed_requests: int = 0
     average_wait_time: float = 0.0
+    health_check_count: int = 0
+    health_check_failures: int = 0
 
 class PooledConnection:
     """Wrapper for database connections with metadata."""
@@ -101,6 +103,7 @@ class ConnectionPool:
         self._shutdown = False
         self._stats = PoolStats()
         self._cleanup_thread = None
+        self._health_check_interval = 30  # seconds
 
         # Initialize minimum connections
         self._initialize_pool()
@@ -261,9 +264,14 @@ class ConnectionPool:
     def _test_connection(self, conn: PooledConnection) -> bool:
         """Test if connection is still valid."""
         try:
+            with self._lock:
+                self._stats.health_check_count += 1
+
             conn.execute("SELECT 1").fetchone()
             return True
         except Exception as e:
+            with self._lock:
+                self._stats.health_check_failures += 1
             logger.debug(f"Connection test failed: {e}")
             return False
 
@@ -301,9 +309,17 @@ class ConnectionPool:
     def _start_cleanup_thread(self):
         """Start background thread for cleaning up idle connections."""
         def cleanup_worker():
+            health_check_counter = 0
             while not self._shutdown:
                 try:
                     self._cleanup_idle_connections()
+
+                    # Perform health checks every few cleanup cycles
+                    health_check_counter += 1
+                    if health_check_counter >= 2:  # Every 2 minutes
+                        self._perform_health_checks()
+                        health_check_counter = 0
+
                     time.sleep(60)  # Check every minute
                 except Exception as e:
                     logger.error(f"Error in cleanup thread: {e}")
@@ -347,6 +363,22 @@ class ConnectionPool:
             except Exception as e:
                 logger.error(f"Error cleaning up connection: {e}")
 
+    def _perform_health_checks(self):
+        """Perform health checks on all idle connections."""
+        unhealthy_connections = []
+
+        with self._lock:
+            idle_connections = [conn for conn in self._all_connections if not conn.is_active]
+
+        for conn in idle_connections:
+            if not self._test_connection(conn):
+                unhealthy_connections.append(conn)
+
+        # Remove unhealthy connections
+        for conn in unhealthy_connections:
+            self._remove_connection(conn)
+            logger.debug(f"Removed unhealthy connection during health check")
+
     @contextmanager
     def get_connection_context(self):
         """Context manager for getting and returning connections."""
@@ -361,6 +393,13 @@ class ConnectionPool:
     def get_stats(self) -> Dict[str, Any]:
         """Get connection pool statistics."""
         with self._lock:
+            health_check_success_rate = 0.0
+            if self._stats.health_check_count > 0:
+                health_check_success_rate = round(
+                    ((self._stats.health_check_count - self._stats.health_check_failures) /
+                     self._stats.health_check_count) * 100, 2
+                )
+
             return {
                 'total_connections': self._stats.total_connections,
                 'active_connections': self._stats.active_connections,
@@ -374,7 +413,10 @@ class ConnectionPool:
                 'average_wait_time_ms': round(self._stats.average_wait_time * 1000, 2),
                 'pool_utilization': round(
                     (self._stats.active_connections / self.max_connections) * 100, 2
-                ) if self.max_connections > 0 else 0
+                ) if self.max_connections > 0 else 0,
+                'health_check_count': self._stats.health_check_count,
+                'health_check_failures': self._stats.health_check_failures,
+                'health_check_success_rate': health_check_success_rate
             }
 
     def shutdown(self):
