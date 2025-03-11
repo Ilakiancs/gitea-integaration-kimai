@@ -47,6 +47,19 @@ class GiteaKimaiClient:
         self.password = password
         self.session = requests.Session()
         self.session.timeout = 30
+        # Configure retry strategy for network issues
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+
+        retry_strategy = Retry(
+            total=3,
+            status_forcelist=[429, 500, 502, 503, 504],
+            method_whitelist=["HEAD", "GET", "OPTIONS"],
+            backoff_factor=1
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
 
         # If token is provided, use it immediately
         if self.token:
@@ -99,6 +112,10 @@ class GiteaKimaiClient:
 
             return True
 
+        except requests.Timeout as e:
+            raise ApiClientError(f"Authentication timeout after 30 seconds: {e}")
+        except requests.ConnectionError as e:
+            raise ApiClientError(f"Connection error during authentication: {e}")
         except requests.RequestException as e:
             raise ApiClientError(f"Request error during authentication: {e}")
 
@@ -140,14 +157,22 @@ class GiteaKimaiClient:
             )
 
             if response.status_code >= 400:
-                raise ApiClientError(
-                    f"API request failed: {response.text}",
-                    response.status_code,
-                    response
-                )
+                error_msg = f"API request failed: {response.text}"
+                if response.status_code == 408:
+                    error_msg = "Request timeout - server took too long to respond"
+                elif response.status_code == 429:
+                    error_msg = "Rate limit exceeded - too many requests"
+                elif response.status_code >= 500:
+                    error_msg = f"Server error ({response.status_code}): {response.text}"
+
+                raise ApiClientError(error_msg, response.status_code, response)
 
             return response.json()
 
+        except requests.Timeout as e:
+            raise ApiClientError(f"Request timeout after 30 seconds: {e}")
+        except requests.ConnectionError as e:
+            raise ApiClientError(f"Connection error - check network connectivity: {e}")
         except requests.RequestException as e:
             raise ApiClientError(f"Request error: {e}")
 
