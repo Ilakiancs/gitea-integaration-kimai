@@ -98,6 +98,41 @@ class EnhancedGiteeKimaiSync:
         self.rate_limit_enabled = RATE_LIMIT_ENABLED
         self.rate_limit_requests = RATE_LIMIT_REQUESTS
         self.rate_limit_period = RATE_LIMIT_PERIOD
+
+        # Database optimization settings
+        self.batch_size = int(os.getenv('DB_BATCH_SIZE', '1000'))
+        self.use_transactions = True
+        self.prepare_statements()
+
+    def prepare_statements(self):
+        """Prepare optimized SQL statements for better performance."""
+        self.prepared_statements = {
+            'insert_issue': """
+                INSERT OR REPLACE INTO sync_items
+                (gitea_id, kimai_id, title, repository, last_updated, sync_status)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            'bulk_update_status': """
+                UPDATE sync_items SET sync_status = ?, last_updated = ?
+                WHERE gitea_id IN ({})
+            """,
+            'get_outdated_items': """
+                SELECT gitea_id, kimai_id, title, repository, last_updated
+                FROM sync_items
+                WHERE last_updated < ? OR sync_status = 'pending'
+                ORDER BY last_updated ASC
+                LIMIT ?
+            """,
+            'get_repository_stats': """
+                SELECT repository,
+                       COUNT(*) as total_items,
+                       SUM(CASE WHEN sync_status = 'synced' THEN 1 ELSE 0 END) as synced_items,
+                       MAX(last_updated) as last_sync
+                FROM sync_items
+                WHERE repository = ?
+                GROUP BY repository
+            """
+        }
         self.request_timestamps = []
 
         # Pagination configuration
