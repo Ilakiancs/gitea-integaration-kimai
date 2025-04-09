@@ -92,75 +92,75 @@ class RateLimitConfig:
 
 class ConfigurationManager:
     """Manages configuration loading and validation."""
-    
+
     def __init__(self, config_path: Optional[str] = None):
         self.config_path = config_path or "config"
         self.config_cache = {}
         self._load_environment()
-    
+
     def _load_environment(self):
         """Load environment variables."""
         # Load .env file if it exists
         env_file = Path(".env")
         if env_file.exists():
             load_dotenv(env_file)
-        
+
         # Load environment-specific .env file
         env = os.getenv("ENVIRONMENT", "development")
         env_file = Path(f".env.{env}")
         if env_file.exists():
             load_dotenv(env_file)
-    
+
     def load_config(self, environment: str = None) -> Dict[str, Any]:
         """Load configuration for specified environment."""
         env = environment or os.getenv("ENVIRONMENT", "development")
-        
+
         if env in self.config_cache:
             return self.config_cache[env]
-        
+
         config = self._load_config_files(env)
         config = self._merge_environment_overrides(config, env)
         config = self._validate_config(config)
-        
+
         self.config_cache[env] = config
         return config
-    
+
     def _load_config_files(self, environment: str) -> Dict[str, Any]:
         """Load configuration from files."""
         config = {}
-        
+
         # Load base config
         base_config_path = Path(self.config_path) / "config.yaml"
         if base_config_path.exists():
             with open(base_config_path, 'r') as f:
                 config.update(yaml.safe_load(f) or {})
-        
+
         # Load environment-specific config
         env_config_path = Path(self.config_path) / f"config.{environment}.yaml"
         if env_config_path.exists():
             with open(env_config_path, 'r') as f:
                 env_config = yaml.safe_load(f) or {}
                 config = self._deep_merge(config, env_config)
-        
+
         # Load JSON config if YAML doesn't exist
         if not config:
             base_config_path = Path(self.config_path) / "config.json"
             if base_config_path.exists():
                 with open(base_config_path, 'r') as f:
                     config.update(json.load(f) or {})
-            
+
             env_config_path = Path(self.config_path) / f"config.{environment}.json"
             if env_config_path.exists():
                 with open(env_config_path, 'r') as f:
                     env_config = json.load(f) or {}
                     config = self._deep_merge(config, env_config)
-        
+
         return config
-    
+
     def _merge_environment_overrides(self, config: Dict[str, Any], environment: str) -> Dict[str, Any]:
         """Merge environment variable overrides."""
         overrides = {}
-        
+
         # Gitea overrides
         if os.getenv("GITEA_URL"):
             overrides.setdefault("gitea", {})["url"] = os.getenv("GITEA_URL")
@@ -168,7 +168,7 @@ class ConfigurationManager:
             overrides.setdefault("gitea", {})["token"] = os.getenv("GITEA_TOKEN")
         if os.getenv("GITEA_ORGANIZATION"):
             overrides.setdefault("gitea", {})["organization"] = os.getenv("GITEA_ORGANIZATION")
-        
+
         # Kimai overrides
         if os.getenv("KIMAI_URL"):
             overrides.setdefault("kimai", {})["url"] = os.getenv("KIMAI_URL")
@@ -178,7 +178,7 @@ class ConfigurationManager:
             overrides.setdefault("kimai", {})["password"] = os.getenv("KIMAI_PASSWORD")
         if os.getenv("KIMAI_TOKEN"):
             overrides.setdefault("kimai", {})["token"] = os.getenv("KIMAI_TOKEN")
-        
+
         # Sync overrides
         if os.getenv("REPOS_TO_SYNC"):
             overrides.setdefault("sync", {})["repositories"] = os.getenv("REPOS_TO_SYNC").split(",")
@@ -186,73 +186,73 @@ class ConfigurationManager:
             overrides.setdefault("sync", {})["sync_pull_requests"] = os.getenv("SYNC_PULL_REQUESTS").lower() == "true"
         if os.getenv("READ_ONLY_MODE"):
             overrides.setdefault("sync", {})["read_only_mode"] = os.getenv("READ_ONLY_MODE").lower() == "true"
-        
+
         # Database overrides
         if os.getenv("DATABASE_PATH"):
             overrides.setdefault("database", {})["path"] = os.getenv("DATABASE_PATH")
-        
+
         # Logging overrides
         if os.getenv("LOG_LEVEL"):
             overrides.setdefault("logging", {})["level"] = os.getenv("LOG_LEVEL")
-        
+
         return self._deep_merge(config, overrides)
-    
+
     def _deep_merge(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
         """Deep merge two dictionaries."""
         result = base.copy()
-        
+
         for key, value in override.items():
             if key in result and isinstance(result[key], dict) and isinstance(value, dict):
                 result[key] = self._deep_merge(result[key], value)
             else:
                 result[key] = value
-        
+
         return result
-    
+
     def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Validate configuration and set defaults."""
         validated = {}
-        
+
         # Validate Gitea config
         gitea_config = config.get("gitea", {})
         if not gitea_config.get("url"):
             raise ValueError("Gitea URL is required")
         if not gitea_config.get("token") and not (gitea_config.get("username") and gitea_config.get("password")):
             raise ValueError("Gitea authentication (token or username/password) is required")
-        
+
         validated["gitea"] = GiteaConfig(**gitea_config)
-        
+
         # Validate Kimai config
         kimai_config = config.get("kimai", {})
         if not kimai_config.get("url"):
             raise ValueError("Kimai URL is required")
         if not kimai_config.get("username") or not kimai_config.get("password"):
             raise ValueError("Kimai username and password are required")
-        
+
         validated["kimai"] = KimaiConfig(**kimai_config)
-        
+
         # Validate Sync config
         sync_config = config.get("sync", {})
         if not sync_config.get("repositories"):
             raise ValueError("At least one repository must be specified for sync")
-        
+
         validated["sync"] = SyncConfig(**sync_config)
-        
+
         # Set defaults for optional configs
         validated["database"] = DatabaseConfig(**config.get("database", {}))
         validated["logging"] = LoggingConfig(**config.get("logging", {}))
         validated["notifications"] = NotificationConfig(**config.get("notifications", {}))
         validated["rate_limit"] = RateLimitConfig(**config.get("rate_limit", {}))
-        
+
         return validated
-    
+
     def save_config(self, config: Dict[str, Any], environment: str = None):
         """Save configuration to file."""
         env = environment or os.getenv("ENVIRONMENT", "development")
         config_path = Path(self.config_path) / f"config.{env}.yaml"
-        
+
         config_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Convert dataclasses to dictionaries
         config_dict = {}
         for key, value in config.items():
@@ -260,24 +260,24 @@ class ConfigurationManager:
                 config_dict[key] = asdict(value)
             else:
                 config_dict[key] = value
-        
+
         with open(config_path, 'w') as f:
             yaml.dump(config_dict, f, default_flow_style=False, indent=2)
-        
+
         logger.info(f"Configuration saved to {config_path}")
-    
+
     def get_config_section(self, section: str, environment: str = None) -> Any:
         """Get a specific configuration section."""
         config = self.load_config(environment)
         return config.get(section)
-    
+
     def update_config_section(self, section: str, updates: Dict[str, Any], environment: str = None):
         """Update a specific configuration section."""
         config = self.load_config(environment)
-        
+
         if section not in config:
             raise ValueError(f"Configuration section '{section}' not found")
-        
+
         current_section = config[section]
         if hasattr(current_section, '__dataclass_fields__'):
             # Update dataclass
@@ -287,31 +287,31 @@ class ConfigurationManager:
         else:
             # Update dictionary
             config[section].update(updates)
-        
+
         self.save_config(config, environment)
         self.config_cache.clear()  # Clear cache to reload
-    
+
     def list_environments(self) -> List[str]:
         """List available configuration environments."""
         config_dir = Path(self.config_path)
         if not config_dir.exists():
             return ["development"]
-        
+
         environments = set()
         for file_path in config_dir.glob("config.*.yaml"):
             env = file_path.stem.split(".", 1)[1]
             environments.add(env)
-        
+
         for file_path in config_dir.glob("config.*.json"):
             env = file_path.stem.split(".", 1)[1]
             environments.add(env)
-        
+
         return sorted(list(environments)) if environments else ["development"]
-    
+
     def create_environment(self, environment: str, base_environment: str = "development"):
         """Create a new environment configuration."""
         base_config = self.load_config(base_environment)
-        
+
         # Create environment-specific config
         env_config = {}
         for section, config_obj in base_config.items():
@@ -319,15 +319,15 @@ class ConfigurationManager:
                 env_config[section] = asdict(config_obj)
             else:
                 env_config[section] = config_obj
-        
+
         self.save_config(env_config, environment)
         logger.info(f"Created new environment configuration: {environment}")
-    
+
     def validate_connection_configs(self) -> Dict[str, bool]:
         """Validate connection configurations."""
         config = self.load_config()
         results = {}
-        
+
         # Validate Gitea connection
         try:
             gitea_config = config["gitea"]
@@ -339,7 +339,7 @@ class ConfigurationManager:
         except Exception as e:
             results["gitea"] = False
             logger.error(f"Gitea config validation failed: {e}")
-        
+
         # Validate Kimai connection
         try:
             kimai_config = config["kimai"]
@@ -350,7 +350,7 @@ class ConfigurationManager:
         except Exception as e:
             results["kimai"] = False
             logger.error(f"Kimai config validation failed: {e}")
-        
+
         return results
 class ConfigError(Exception): pass
 def validate_timeout(timeout): return 1 <= timeout <= 300
