@@ -43,3 +43,4 @@ isort==5.12.0
 setuptools==68.2.0
 wheel==0.41.2
 twine==4.0.2
+httpretty==1.1.4
