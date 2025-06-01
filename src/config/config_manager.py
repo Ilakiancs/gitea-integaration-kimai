@@ -28,6 +28,7 @@ class GiteaConfig:
     verify_ssl: bool = True
     timeout: int = 30
     max_retries: int = 3
+    request_delay: float = 0.5
 
 @dataclass
 class KimaiConfig:
