@@ -46,3 +46,4 @@ twine==4.0.2
 httpretty==1.1.4
 responses==0.23.3
 freezegun==1.2.2
+factory-boy==3.3.0
