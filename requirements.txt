@@ -47,3 +47,4 @@ httpretty==1.1.4
 responses==0.23.3
 freezegun==1.2.2
 factory-boy==3.3.0
+faker==19.6.2
