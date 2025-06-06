@@ -352,3 +352,4 @@ class ConfigurationManager:
             logger.error(f"Kimai config validation failed: {e}")
         
         return results
+class ConfigError(Exception): pass
