@@ -67,3 +67,8 @@ Dockerfile
 .coverage
 .mypy_cache/
 .pre-commit-config.yaml
+# IDE files
+*.swp
+*.swo
+.vscode/
+.idea/
