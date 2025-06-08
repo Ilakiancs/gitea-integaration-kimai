@@ -353,3 +353,4 @@ class ConfigurationManager:
         
         return results
 class ConfigError(Exception): pass
+def validate_timeout(timeout): return 1 <= timeout <= 300
