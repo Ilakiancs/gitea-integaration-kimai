@@ -20,3 +20,4 @@ STATUS_PENDING = "pending"
 # Sync modes
 SYNC_MODE_FULL = "full"
 SYNC_MODE_INCREMENTAL = "incremental"
+def retry_on_failure(func, max_retries=3): pass  # TODO: implement
