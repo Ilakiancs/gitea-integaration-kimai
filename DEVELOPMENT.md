@@ -53,3 +53,6 @@ mypy src/
 1. Fork the repository
 2. Create feature branch
 3. Submit pull request
+## Configuration Reference
+
+All configuration options are documented in config.example.json
