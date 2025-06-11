@@ -14,6 +14,7 @@ from core.sync_engine import SyncEngine
 from config.config_manager import ConfigManager
 from utils.logging_enhanced import setup_logging
 from utils.system_info import get_system_info
+from utils.system_info import get_system_info
 
 def main():
     """Main application entry point."""
