@@ -26,7 +26,7 @@ class GiteaConfig:
     username: Optional[str] = None
     password: Optional[str] = None
     verify_ssl: bool = True
-    timeout: int = 30
+    timeout: int = 45
     max_retries: int = 3
     request_delay: float = 0.5
 
@@ -38,7 +38,7 @@ class KimaiConfig:
     password: str
     token: Optional[str] = None
     verify_ssl: bool = True
-    timeout: int = 30
+    timeout: int = 45
 
 @dataclass
 class SyncConfig:
