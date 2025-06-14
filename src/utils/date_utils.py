@@ -46,3 +46,4 @@ def time_ago(timestamp: float) -> str:
     else:
         days = int(diff / 86400)
         return f"{days} days ago"
+def format_duration(seconds): return f"{seconds:.2f}s"
