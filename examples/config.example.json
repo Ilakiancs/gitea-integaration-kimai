@@ -15,7 +15,7 @@
     "retry_count": 3
   },
   "sync": {
-    "interval": 300,
+    "interval": 600,
     "repositories": ["repo1", "repo2", "repo3"],
     "include_pull_requests": false,
     "read_only_mode": false,
