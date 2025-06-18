@@ -74,3 +74,5 @@ class SimpleCache:
             'expired_count': sum(1 for entry in self.cache.values() if time.time() >= entry['expires'])
         }
 from utils.constants import DEFAULT_TIMEOUT
+    def has_key(self, key: str) -> bool:
+        return key in self.cache
