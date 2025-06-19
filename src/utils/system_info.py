@@ -33,3 +33,4 @@ def get_resource_usage() -> Dict[str, Any]:
         'disk_usage': psutil.disk_usage('/').percent,
         'load_average': psutil.getloadavg()[0] if hasattr(psutil, 'getloadavg') else 0
     }
+def get_process_count(): return len(psutil.pids())
