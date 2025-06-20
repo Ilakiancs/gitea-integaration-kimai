@@ -60,3 +60,4 @@ sphinx-autodoc-typehints==1.24.0
 sphinx-click==5.0.1
 mkdocs==1.5.3
 mkdocs-material==9.2.8
+mkdocs-click==0.8.1
