@@ -56,3 +56,6 @@ mypy src/
 ## Configuration Reference
 
 All configuration options are documented in config.example.json
+### Performance
+
+- Use connection pooling for better performance
