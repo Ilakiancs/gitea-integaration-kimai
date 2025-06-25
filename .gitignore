@@ -72,3 +72,7 @@ Dockerfile
 *.swo
 .vscode/
 .idea/
+# Security
+*.key
+*.pem
+secrets.json
