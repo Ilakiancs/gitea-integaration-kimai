@@ -22,3 +22,4 @@ SYNC_MODE_FULL = "full"
 SYNC_MODE_INCREMENTAL = "incremental"
 def retry_on_failure(func, max_retries=3): pass  # TODO: implement
 import logging; logger = logging.getLogger(__name__)
+def debug_info(): return {"version": "1.3.0", "debug": True}
