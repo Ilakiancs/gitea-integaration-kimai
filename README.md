@@ -12,7 +12,7 @@ syncs issues from Gitea to Kimai activities, tracks time against the right proje
 pip install -r requirements.txt
 cp examples/config.example.json config.json
 # edit config.json with your endpoints
-python main.py sync
+python main.py sync --verbose
 ```
 
 ## configuration
