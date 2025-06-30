@@ -76,3 +76,6 @@ Dockerfile
 *.key
 *.pem
 secrets.json
+# Build artifacts
+build/
+dist/
