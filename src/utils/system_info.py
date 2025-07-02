@@ -16,7 +16,8 @@ def get_system_info() -> Dict[str, Any]:
         'hostname': platform.node(),
         'cpu_count': psutil.cpu_count(),
         'memory_total': psutil.virtual_memory().total,
-        'python_version': platform.python_version()
+        'python_version': platform.python_version(),
+        'boot_time': psutil.boot_time()
     }
 
 def get_resource_usage() -> Dict[str, Any]:
