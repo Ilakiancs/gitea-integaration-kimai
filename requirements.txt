@@ -28,3 +28,4 @@ websockets==11.0.3
 httpx==0.24.1
 psutil==5.9.5
 python-json-logger==2.0.7
+colorama==0.4.6
