@@ -66,3 +66,10 @@ class SimpleCache:
     def keys(self) -> list:
         """Get all cache keys."""
         return list(self.cache.keys())
+    
+    def stats(self) -> dict:
+        """Get cache statistics."""
+        return {
+            'size': len(self.cache),
+            'expired_count': sum(1 for entry in self.cache.values() if time.time() >= entry['expires'])
+        }
