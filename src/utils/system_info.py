@@ -29,5 +29,6 @@ def get_resource_usage() -> Dict[str, Any]:
         'memory_percent': memory.percent,
         'memory_used': memory.used,
         'memory_available': memory.available,
-        'disk_usage': psutil.disk_usage('/').percent
+        'disk_usage': psutil.disk_usage('/').percent,
+        'load_average': psutil.getloadavg()[0] if hasattr(psutil, 'getloadavg') else 0
     }
