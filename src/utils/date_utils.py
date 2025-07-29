@@ -30,3 +30,19 @@ def is_business_hour(hour: int = None) -> bool:
     if hour is None:
         hour = datetime.now().hour
     return 9 <= hour <= 17
+
+def time_ago(timestamp: float) -> str:
+    """Get human readable time ago string."""
+    diff = datetime.now().timestamp() - timestamp
+    
+    if diff < 60:
+        return "just now"
+    elif diff < 3600:
+        minutes = int(diff / 60)
+        return f"{minutes} minutes ago"
+    elif diff < 86400:
+        hours = int(diff / 3600)
+        return f"{hours} hours ago"
+    else:
+        days = int(diff / 86400)
+        return f"{days} days ago"
