@@ -59,4 +59,4 @@ temp/
 
 # Backup files
 *.bak
-*.backup
+*.backup*.swp
