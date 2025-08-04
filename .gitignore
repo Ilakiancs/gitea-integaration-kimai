@@ -60,3 +60,4 @@ temp/
 # Backup files
 *.bak
 *.backup*.swp
+*.tmp
