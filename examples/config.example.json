@@ -60,6 +60,7 @@
     "port": 8080,
     "debug": false,
     "cors_enabled": true
+    "request_timeout": 60,
   },
   "security": {
     "encryption_enabled": true,
