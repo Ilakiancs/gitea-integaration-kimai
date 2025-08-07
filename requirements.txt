@@ -31,3 +31,4 @@ python-json-logger==2.0.7
 colorama==0.4.6
 tqdm==4.66.1
 requests-mock==1.11.0
+schedule==1.2.0
