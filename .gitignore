@@ -61,3 +61,6 @@ temp/
 *.bak
 *.backup*.swp
 *.tmp
+# Docker
+.dockerignore
+Dockerfile
