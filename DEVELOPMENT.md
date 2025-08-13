@@ -10,3 +10,7 @@ python main.py sync
 ### Common Issues
 
 - Connection timeout: Check network settings
+## Performance Tips
+
+- Use async mode for better throughput
+- Enable caching for frequently accessed data
