@@ -14,3 +14,8 @@ python main.py sync
 
 - Use async mode for better throughput
 - Enable caching for frequently accessed data
+## Configuration
+
+### Environment Variables
+
+- `DEBUG`: Enable debug mode
