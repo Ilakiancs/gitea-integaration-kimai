@@ -19,3 +19,10 @@ python main.py sync
 ### Environment Variables
 
 - `DEBUG`: Enable debug mode
+## Testing
+
+### Run Tests
+
+```bash
+python -m pytest tests/
+```
