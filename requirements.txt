@@ -38,3 +38,4 @@ black==23.7.0
 coverage==7.3.0
 mypy==1.5.0
 bandit==1.7.5
+pre-commit==3.4.0
