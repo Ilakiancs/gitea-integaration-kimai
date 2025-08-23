@@ -26,3 +26,11 @@ python main.py sync
 ```bash
 python -m pytest tests/
 ```
+## Code Quality
+
+### Linting
+
+```bash
+flake8 src/
+mypy src/
+```
