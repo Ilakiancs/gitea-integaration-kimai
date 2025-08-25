@@ -34,3 +34,9 @@ python -m pytest tests/
 flake8 src/
 mypy src/
 ```
+## Deployment
+
+### Requirements
+
+- Python 3.8+
+- Required packages from requirements.txt
