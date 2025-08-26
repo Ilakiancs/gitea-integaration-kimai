@@ -40,3 +40,4 @@ mypy==1.5.0
 bandit==1.7.5
 pre-commit==3.4.0
 isort==5.12.0
+setuptools==68.2.0
