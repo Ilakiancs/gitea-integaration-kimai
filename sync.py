@@ -494,7 +494,7 @@ def main():
     """Main entry point."""
     sync = None
     try:
-        print("🚀 Starting Enhanced Gitea to Kimai Sync...")
+        print("Starting Enhanced Gitea to Kimai Sync...")
         print("=" * 60)
 
         sync = EnhancedGiteeKimaiSync()
