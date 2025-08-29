@@ -7,6 +7,9 @@ Run this before using the main sync script to ensure everything is set up correc
 import os
 import sys
 import requests
+import argparse
+import json
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -21,6 +24,19 @@ KIMAI_USERNAME = os.getenv('KIMAI_USERNAME')
 KIMAI_PASSWORD = os.getenv('KIMAI_PASSWORD')
 KIMAI_TOKEN = os.getenv('KIMAI_TOKEN')
 REPOS_TO_SYNC = os.getenv('REPOS_TO_SYNC', '').split(',')
+READ_ONLY_MODE = os.getenv('READ_ONLY_MODE', 'false').lower() == 'true'
+CACHE_ENABLED = os.getenv('CACHE_ENABLED', 'true').lower() == 'true'
+RATE_LIMIT_ENABLED = os.getenv('RATE_LIMIT_ENABLED', 'true').lower() == 'true'
+EXPORT_ENABLED = os.getenv('EXPORT_ENABLED', 'false').lower() == 'true'
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Test Gitea and Kimai connectivity")
+    parser.add_argument('--json', action='store_true', help="Output results in JSON format")
+    parser.add_argument('--verbose', action='store_true', help="Show detailed information")
+    parser.add_argument('--check-cache', action='store_true', help="Check cache directory and files")
+    parser.add_argument('--check-export', action='store_true', help="Check export directory")
+    return parser.parse_args()
 
 def test_env_vars():
     """Test that all required environment variables are set."""
@@ -55,7 +71,16 @@ def test_env_vars():
         return False
 
     print("  [OK] All environment variables are set")
+
+    # Check optional configurations
+    print("\nOptional configurations:")
+    print(f"  - READ_ONLY_MODE: {READ_ONLY_MODE}")
+    print(f"  - CACHE_ENABLED: {CACHE_ENABLED}")
+    print(f"  - RATE_LIMIT_ENABLED: {RATE_LIMIT_ENABLED}")
+    print(f"  - EXPORT_ENABLED: {EXPORT_ENABLED}")
+
     return True
+
 
 def test_gitea_connection():
     """Test Gitea API connection and authentication."""
@@ -158,9 +183,49 @@ def test_kimai_connection():
         print(f"  [ERROR] Kimai connection failed: {e}")
         return False
 
+def test_cache_directory():
+    """Test cache directory configuration."""
+    print("\nTesting cache directory...")
+
+    cache_dir = os.getenv('CACHE_DIR', '.cache')
+
+    if not CACHE_ENABLED:
+        print("  [INFO] Caching is disabled")
+        return True
+
+    if not os.path.exists(cache_dir):
+        print(f"  [WARNING] Cache directory '{cache_dir}' does not exist (will be created during sync)")
+    else:
+        print(f"  [OK] Cache directory exists: {cache_dir}")
+        # Check cache files
+        cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.cache')]
+        print(f"  [INFO] Found {len(cache_files)} cache files")
+
+    return True
+
+def test_export_directory():
+    """Test export directory configuration."""
+    print("\nTesting export directory...")
+
+    export_dir = os.getenv('EXPORT_DIR', 'exports')
+
+    if not EXPORT_ENABLED:
+        print("  [INFO] Exporting is disabled")
+        return True
+
+    if not os.path.exists(export_dir):
+        print(f"  [WARNING] Export directory '{export_dir}' does not exist (will be created during sync)")
+    else:
+        print(f"  [OK] Export directory exists: {export_dir}")
+        # Check export files
+        export_files = [f for f in os.listdir(export_dir) if f.endswith('.csv')]
+        print(f"  [INFO] Found {len(export_files)} export files")
+
+    return True
+
 def test_sample_issue_fetch():
     """Test fetching a sample issue from the first repository."""
-    print("\n🔍 Testing sample issue fetch...")
+    print("\nTesting sample issue fetch...")
 
     try:
         headers = {
@@ -197,6 +262,7 @@ def test_sample_issue_fetch():
 
 def main():
     """Run all tests."""
+    args = parse_arguments()
     print("Starting connectivity and configuration tests...\n")
 
     tests = [
@@ -205,6 +271,13 @@ def main():
         ("Kimai Connection", test_kimai_connection),
         ("Sample Issue Fetch", test_sample_issue_fetch)
     ]
+
+    # Add optional tests based on args
+    if args.check_cache:
+        tests.append(("Cache Directory", test_cache_directory))
+
+    if args.check_export:
+        tests.append(("Export Directory", test_export_directory))
 
     passed = 0
     total = len(tests)
@@ -221,12 +294,37 @@ def main():
     print(f"\n{'='*50}")
     print(f"Test Results: {passed}/{total} tests passed")
 
-    if passed == total:
-        print("All tests passed! You're ready to run the sync script.")
-        return 0
+    results = {
+        "timestamp": datetime.now().isoformat(),
+        "total_tests": total,
+        "passed_tests": passed,
+        "success": passed == total,
+        "tests": {
+            test_name: {"passed": test_name not in failures}
+            for test_name, _ in tests
+        },
+        "env_vars": {
+            "gitea_url": GITEA_URL,
+            "gitea_org": GITEA_ORGANIZATION,
+            "kimai_url": KIMAI_URL,
+            "read_only": READ_ONLY_MODE,
+            "cache_enabled": CACHE_ENABLED,
+            "rate_limit_enabled": RATE_LIMIT_ENABLED,
+            "export_enabled": EXPORT_ENABLED,
+            "repos_count": len([r for r in REPOS_TO_SYNC if r.strip()])
+        }
+    }
+
+    if args.json:
+        print("\nJSON Results:")
+        print(json.dumps(results, indent=2))
     else:
-        print("[WARNING] Some tests failed. Please check your configuration.")
-        return 1
+        if passed == total:
+            print("All tests passed! You're ready to run the sync script.")
+        else:
+            print("[WARNING] Some tests failed. Please check your configuration.")
+
+    return 0 if passed == total else 1
 
 if __name__ == "__main__":
     sys.exit(main())
