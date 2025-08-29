@@ -1,6 +1,6 @@
 # Gitea to Kimai Issue Sync
 
-A comprehensive integration toolkit that synchronizes issues/PRs from Gitea repositories to activities in Kimai time tracking system with advanced features for data management, security, and reliability.
+A comprehensive integration toolkit that synchronizes issues/PRs from Gitea repositories to activities in Kimai time tracking system with advanced features for data management, security, and reliability. Includes API access, scheduling, notifications, and comprehensive diagnostic tools.
 
 ## Overview
 
@@ -33,10 +33,13 @@ The script maintains a SQLite database to track synced items and prevent duplica
 - Backup and restore capabilities
 - Diagnostic tools for troubleshooting
 
-### User Interface
+### User Interface & Integration
 - Command-line interface with various options
 - Helper scripts for common operations
 - Comprehensive documentation
+- REST API with JWT authentication
+- Notification system with multiple channels
+- Flexible scheduling capabilities
 
 ## Requirements
 
@@ -382,6 +385,66 @@ Or use the included helper script:
 
 ## Advanced Features
 
+### REST API
+
+Access the integration through a secure REST API:
+
+```bash
+# Start the API server
+./run_sync.sh api start [host] [port]
+
+# Generate a secure API key
+./run_sync.sh api key
+```
+
+Available endpoints:
+- `GET /api/v1/status` - System status information
+- `GET /api/v1/activities` - List synchronized activities
+- `GET /api/v1/projects` - List synchronized projects
+- `GET /api/v1/sync/history` - View synchronization history
+- `POST /api/v1/auth` - Obtain JWT authentication token
+- `POST /api/v1/sync/trigger` - Trigger synchronization
+
+### Scheduled Synchronization
+
+Run synchronization on a schedule:
+
+```bash
+# Start the scheduler
+./run_sync.sh schedule start
+
+# Check scheduler status
+./run_sync.sh schedule status
+
+# Stop the scheduler
+./run_sync.sh schedule stop
+```
+
+Configure scheduling in your `.env` file:
+```
+SCHEDULER_ENABLED=true
+SCHEDULER_INTERVAL=3600
+SCHEDULER_TIME_WINDOW=09:00-17:00
+SCHEDULER_DAYS=weekdays
+```
+
+### Notifications
+
+Receive notifications about synchronization events:
+
+```
+NOTIFICATIONS_ENABLED=true
+NOTIFICATION_LEVEL=ERROR
+NOTIFICATION_CHANNELS=email,slack,discord
+```
+
+Supported notification channels:
+- Email
+- Slack
+- Microsoft Teams
+- Discord
+- Console
+
 ### Caching
 
 Control the caching system to improve performance:
@@ -420,5 +483,8 @@ The integration includes built-in:
 - API error handling and retry logic
 
 ## License
+
+MIT License
+
 
 This project is provided as-is. Modify and use according to your needs.
