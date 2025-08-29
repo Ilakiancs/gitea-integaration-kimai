@@ -21,6 +21,7 @@ import requests
 import json
 import re
 import time
+import csv
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from dotenv import load_dotenv
@@ -49,6 +50,10 @@ RATE_LIMIT_PERIOD = int(os.getenv('RATE_LIMIT_PERIOD', '60'))  # in seconds
 # Pagination settings
 PAGE_SIZE = int(os.getenv('PAGE_SIZE', '100'))
 MAX_PAGES = int(os.getenv('MAX_PAGES', '10'))  # Maximum number of pages to fetch
+
+# Export settings
+EXPORT_ENABLED = os.getenv('EXPORT_ENABLED', 'false').lower() == 'true'
+EXPORT_DIR = os.getenv('EXPORT_DIR', 'exports')
 
 # Project mapping configuration
 PROJECT_MAPPING = {
@@ -89,6 +94,12 @@ class EnhancedGiteeKimaiSync:
         # Pagination configuration
         self.page_size = PAGE_SIZE
         self.max_pages = MAX_PAGES
+
+        # Export configuration
+        self.export_enabled = EXPORT_ENABLED
+        self.export_dir = EXPORT_DIR
+        if self.export_enabled and not os.path.exists(self.export_dir):
+            os.makedirs(self.export_dir)
 
         self.authenticate_kimai()
         self.existing_projects = {}
@@ -139,6 +150,12 @@ class EnhancedGiteeKimaiSync:
             logger.info(f"Rate limiting enabled: {self.rate_limit_requests} requests per {self.rate_limit_period} seconds")
         else:
             logger.info("Rate limiting disabled")
+
+        # Log export configuration
+        if self.export_enabled:
+            logger.info(f"Data export enabled: saving to '{self.export_dir}' directory")
+        else:
+            logger.info("Data export disabled")
 
         if self.read_only:
             logger.info("Running in READ-ONLY mode - no changes will be made to Kimai")
@@ -539,6 +556,10 @@ class EnhancedGiteeKimaiSync:
             logger.info(f"Synchronization complete: {total_created} activities created, {total_updated} activities updated")
         logger.info("=" * 60)
 
+        # Export data after sync if enabled
+        if self.export_enabled:
+            self.export_data()
+
         return total_created, total_updated
 
     def get_sync_statistics(self):
@@ -694,6 +715,64 @@ class EnhancedGiteeKimaiSync:
 
         logger.info(f"Retrieved {len(all_items)} total items from {endpoint} endpoint")
         return all_items
+
+    def export_data(self):
+        """Export sync data to CSV files."""
+        if not self.export_enabled:
+            return
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Export sync records
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT * FROM activity_sync")
+            rows = cursor.fetchall()
+
+            if not rows:
+                logger.info("No sync records to export")
+                return
+
+            # Export to CSV
+            csv_path = os.path.join(self.export_dir, f"sync_records_{timestamp}.csv")
+            with open(csv_path, 'w', newline='') as csvfile:
+                # Get column names from cursor description
+                fieldnames = [description[0] for description in cursor.description]
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+                writer.writeheader()
+                for row in rows:
+                    # Convert row to dict
+                    row_dict = {fieldnames[i]: row[i] for i in range(len(fieldnames))}
+                    writer.writerow(row_dict)
+
+            logger.info(f"Exported {len(rows)} sync records to {csv_path}")
+
+            # Export statistics summary
+            stats = self.get_sync_statistics()
+            stats_path = os.path.join(self.export_dir, f"sync_stats_{timestamp}.csv")
+
+            # Export repository stats
+            with open(stats_path, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(['Repository', 'Item Count', 'Last Sync'])
+
+                for repo_stat in stats['by_repository']:
+                    writer.writerow([repo_stat[0], repo_stat[1], repo_stat[2]])
+
+                writer.writerow([])  # Empty row as separator
+                writer.writerow(['State', 'Count'])
+
+                for state_stat in stats['by_state']:
+                    writer.writerow([state_stat[0], state_stat[1]])
+
+                writer.writerow([])
+                writer.writerow(['Total Synced Items', stats['total_synced']])
+
+            logger.info(f"Exported sync statistics to {stats_path}")
+
+        except Exception as e:
+            logger.error(f"Failed to export data: {e}")
 
 def main():
     """Main entry point."""
