@@ -7,6 +7,10 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR" || exit 1
 
+# Create essential directories if they don't exist
+[ -d ".cache" ] || mkdir -p .cache
+[ -d "exports" ] || mkdir -p exports
+
 # Activate virtual environment if it exists
 if [ -d "venv" ]; then
     source venv/bin/activate
@@ -22,6 +26,8 @@ show_help() {
     echo "  sync    - Run the sync once"
     echo "  report  - Show sync results and statistics"
     echo "  auto    - Set up automatic syncing (requires sudo)"
+    echo "  export  - Export sync data to CSV files"
+    echo "  cache   - Manage cache (clear/status)"
     echo "  help    - Show this help message"
     echo ""
     echo "If no command is provided, runs the sync once."
@@ -49,6 +55,25 @@ setup_auto_sync() {
     rm "$TEMP_CRON"
 }
 
+# Cache management functions
+clear_cache() {
+    echo "Clearing cache..."
+    rm -rf .cache/*
+    echo "Cache cleared."
+}
+
+show_cache_status() {
+    echo "Cache status:"
+    if [ -d ".cache" ]; then
+        cache_count=$(find .cache -type f -name "*.cache" | wc -l)
+        cache_size=$(du -sh .cache | cut -f1)
+        echo "  Cache files: $cache_count"
+        echo "  Cache size:  $cache_size"
+    else
+        echo "  Cache directory not found"
+    fi
+}
+
 # Main logic based on arguments
 case "$1" in
     "test")
@@ -57,7 +82,8 @@ case "$1" in
         ;;
     "sync")
         echo "Running sync..."
-        python3 sync.py
+        shift
+        python3 sync.py "$@"  # Pass additional arguments to sync.py
         ;;
     "report")
         echo "Showing sync report..."
@@ -65,6 +91,25 @@ case "$1" in
         ;;
     "auto")
         setup_auto_sync
+        ;;
+    "export")
+        echo "Exporting sync data..."
+        python3 sync.py --export
+        ;;
+    "cache")
+        case "$2" in
+            "clear")
+                clear_cache
+                ;;
+            "status")
+                show_cache_status
+                ;;
+            *)
+                echo "Cache management commands:"
+                echo "  ./run_sync.sh cache clear  - Clear cache"
+                echo "  ./run_sync.sh cache status - Show cache status"
+                ;;
+        esac
         ;;
     "help")
         show_help
