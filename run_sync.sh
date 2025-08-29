@@ -28,6 +28,8 @@ show_help() {
     echo "  auto    - Set up automatic syncing (requires sudo)"
     echo "  export  - Export sync data to CSV files"
     echo "  cache   - Manage cache (clear/status)"
+    echo "  backup  - Create/restore backups"
+    echo "  diagnose - Run diagnostics"
     echo "  help    - Show this help message"
     echo ""
     echo "If no command is provided, runs the sync once."
@@ -96,6 +98,34 @@ case "$1" in
         echo "Exporting sync data..."
         python3 sync.py --export
         ;;
+    "backup")
+        case "$2" in
+            "create")
+                echo "Creating backup..."
+                python3 backup.py backup
+                ;;
+            "restore")
+                if [ -z "$3" ]; then
+                    echo "Please specify backup file to restore:"
+                    echo "  ./run_sync.sh backup restore <backup_file>"
+                    python3 backup.py list
+                else
+                    echo "Restoring backup from $3..."
+                    python3 backup.py restore "$3"
+                fi
+                ;;
+            "list")
+                echo "Available backups:"
+                python3 backup.py list --detail
+                ;;
+            *)
+                echo "Backup management commands:"
+                echo "  ./run_sync.sh backup create - Create a new backup"
+                echo "  ./run_sync.sh backup list   - List available backups"
+                echo "  ./run_sync.sh backup restore <file> - Restore from backup"
+                ;;
+        esac
+        ;;
     "cache")
         case "$2" in
             "clear")
@@ -110,6 +140,10 @@ case "$1" in
                 echo "  ./run_sync.sh cache status - Show cache status"
                 ;;
         esac
+        ;;
+    "diagnose")
+        echo "Running diagnostics..."
+        python3 diagnose.py "$2"
         ;;
     "help")
         show_help
