@@ -104,6 +104,10 @@ class EnhancedGiteeKimaiSync:
         else:
             logger.info("Pull request syncing is DISABLED (issues only)")
 
+        # Validate repository list
+        if any(not repo.strip() for repo in REPOS_TO_SYNC):
+            logger.warning("Empty repository names found in REPOS_TO_SYNC - these will be skipped")
+
         logger.info("Configuration validated successfully")
 
     def setup_database(self):
@@ -221,6 +225,13 @@ class EnhancedGiteeKimaiSync:
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to fetch issues from {repo}: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Response status code: {e.response.status_code}")
+                try:
+                    error_details = e.response.json()
+                    logger.error(f"Error details: {error_details}")
+                except:
+                    logger.error(f"Response text: {e.response.text[:200]}")
             return []
 
     def get_kimai_project_id(self, repo_name: str) -> Optional[int]:
@@ -265,6 +276,18 @@ class EnhancedGiteeKimaiSync:
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to create project for {repo_name}: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                logger.error(f"Response status code: {status_code}")
+
+                if status_code == 403:
+                    logger.error("Permission denied: Your API token may not have project creation rights")
+                elif status_code == 400:
+                    try:
+                        error_details = e.response.json()
+                        logger.error(f"Validation error: {error_details}")
+                    except:
+                        logger.error(f"Response text: {e.response.text[:200]}")
             return None
 
     def get_existing_sync_record(self, gitea_issue_id: int, repository_name: str) -> Optional[Tuple]:
@@ -357,9 +380,24 @@ class EnhancedGiteeKimaiSync:
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to create/update activity for issue #{issue['number']}: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                logger.error(f"Response status code: {status_code}")
+
+                if status_code == 403:
+                    logger.error("Permission denied: Your API token may not have activity creation/modification rights")
+                elif status_code == 400:
+                    try:
+                        error_details = e.response.json()
+                        logger.error(f"Validation error: {error_details}")
+                    except:
+                        logger.error(f"Response text: {e.response.text[:200]}")
             return False
         except sqlite3.Error as e:
             logger.error(f"Database error for issue #{issue['number']}: {e}")
+            # Add specific handling for common SQLite errors
+            if 'UNIQUE constraint failed' in str(e):
+                logger.error("This appears to be a duplicate record issue. The database constraint prevented duplicate entries.")
             return False
 
     def sync_repository(self, repo: str) -> Tuple[int, int]:
@@ -419,6 +457,8 @@ class EnhancedGiteeKimaiSync:
                     total_updated += updated
                 except Exception as e:
                     logger.error(f"Failed to sync repository {repo}: {e}")
+                    import traceback
+                    logger.error(f"Traceback: {traceback.format_exc()}")
 
         logger.info("=" * 60)
         if self.read_only:
@@ -505,6 +545,8 @@ def main():
         logger.info("Sync interrupted by user")
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
+        import traceback
+        logger.error(f"Detailed error: {traceback.format_exc()}")
         sys.exit(1)
     finally:
         if sync:
