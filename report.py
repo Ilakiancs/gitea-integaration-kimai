@@ -404,24 +404,24 @@ class ResultsViewer:
             response = self.gitea_session.get(f"{GITEA_URL}/api/v1/user", timeout=5)
             if response.status_code == 200:
                 user = response.json()
-                print_success(f"✅ Authenticated as: {user.get('login')} ({user.get('full_name', 'N/A')})")
+                print_success(f"Authenticated as: {user.get('login')} ({user.get('full_name', 'N/A')})")
             else:
-                print_warning(f"⚠️ User authentication issue: {response.status_code}")
+                print_warning(f"User authentication issue: {response.status_code}")
 
             # Check organization access
             response = self.gitea_session.get(f"{GITEA_URL}/api/v1/orgs/{GITEA_ORGANIZATION}", timeout=5)
             if response.status_code == 200:
-                print_success(f"✅ Organization '{GITEA_ORGANIZATION}' access: OK")
+                print_success(f"Organization '{GITEA_ORGANIZATION}' access: OK")
             else:
-                print_warning(f"⚠️ Organization access issue: {response.status_code}")
+                print_warning(f"Organization access issue: {response.status_code}")
 
             # Check repository access
             response = self.gitea_session.get(f"{GITEA_URL}/api/v1/orgs/{GITEA_ORGANIZATION}/repos", timeout=5)
             if response.status_code == 200:
                 repos = response.json()
-                print_success(f"✅ Repository access: OK ({len(repos)} repositories found)")
+                print_success(f"Repository access: OK ({len(repos)} repositories found)")
             else:
-                print_warning(f"⚠️ Repository access issue: {response.status_code}")
+                print_warning(f"Repository access issue: {response.status_code}")
 
             # Check issue access with a test repository
             if response.status_code == 200 and repos:
@@ -431,9 +431,9 @@ class ResultsViewer:
                     timeout=5
                 )
                 if response.status_code == 200:
-                    print_success(f"✅ Issues access: OK (tested with '{test_repo}')")
+                    print_success(f"Issues access: OK (tested with '{test_repo}')")
                 else:
-                    print_warning(f"⚠️ Issues access issue: {response.status_code}")
+                    print_warning(f"Issues access issue: {response.status_code}")
 
         except requests.exceptions.RequestException as e:
             print_error(f"Error checking Gitea permissions: {e}")
@@ -458,11 +458,11 @@ class ResultsViewer:
                     response = self.kimai_session.post(f"{KIMAI_URL}/api/{endpoint}", json=data, timeout=5)
 
                 if response.status_code == 200:
-                    print_success(f"✅ {description}: Permission granted")
+                    print_success(f"{description}: Permission granted")
                 elif response.status_code == 403:
-                    print_warning(f"⚠️ {description}: Permission denied (403 Forbidden)")
+                    print_warning(f"{description}: Permission denied (403 Forbidden)")
                 else:
-                    print_warning(f"⚠️ {description}: Status {response.status_code}")
+                    print_warning(f"{description}: Status {response.status_code}")
 
             except Exception as e:
                 print_error(f"Error testing {description}: {e}")
