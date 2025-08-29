@@ -19,6 +19,12 @@ The script maintains a SQLite database to track synced items and prevent duplica
 - Comprehensive logging and error handling
 - Environment-based configuration
 - Supports both issues and pull requests
+- Data caching to reduce API calls
+- Rate limiting to prevent API throttling
+- Pagination support for handling large datasets
+- CSV export functionality for sync data
+- Command-line interface with various options
+- Input validation and sanitization
 
 ## Requirements
 
@@ -61,6 +67,7 @@ GITEA_ORGANIZATION=your-organization-name
 KIMAI_URL=https://your-kimai-instance.com
 KIMAI_USERNAME=your_kimai_username
 KIMAI_PASSWORD=your_kimai_password
+KIMAI_TOKEN=your_kimai_api_token
 
 # Repositories to sync (comma-separated)
 REPOS_TO_SYNC=repo1,repo2,repo3
@@ -70,6 +77,28 @@ DATABASE_PATH=sync.db
 
 # Logging Level (DEBUG, INFO, WARNING, ERROR)
 LOG_LEVEL=INFO
+
+# Sync Options
+READ_ONLY_MODE=false
+SYNC_PULL_REQUESTS=false
+
+# Rate Limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS=10
+RATE_LIMIT_PERIOD=60
+
+# Pagination
+PAGE_SIZE=100
+MAX_PAGES=10
+
+# Caching
+CACHE_ENABLED=true
+CACHE_TTL=3600
+CACHE_DIR=.cache
+
+# Export
+EXPORT_ENABLED=false
+EXPORT_DIR=exports
 ```
 
 ### Getting API Tokens
@@ -88,6 +117,47 @@ LOG_LEVEL=INFO
 ### Basic Sync
 ```bash
 python sync.py
+```
+
+### Command Line Arguments
+
+The script supports a variety of command line arguments for easier operation:
+
+```bash
+# Show help message
+python sync.py --help
+
+# Run in read-only mode (no changes to Kimai)
+python sync.py --dry-run
+
+# Show sync statistics without performing sync
+python sync.py --stats
+
+# Export sync data to CSV files
+python sync.py --export
+
+# Specify repos to sync (overriding .env)
+python sync.py --repos "repo1,repo2,repo3"
+
+# Include pull requests in sync
+python sync.py --include-prs
+
+# Clear the cache before running
+python sync.py --clear-cache
+
+# Control caching behavior
+python sync.py --no-cache  # Disable caching
+python sync.py --cache     # Enable caching
+
+# Control API rate limiting
+python sync.py --no-rate-limit  # Disable rate limiting
+python sync.py --rate-limit     # Enable rate limiting
+
+# Set pagination parameters
+python sync.py --page-size 50 --max-pages 5
+
+# Enable verbose output
+python sync.py --verbose
 ```
 
 ### Running with Different Log Levels
@@ -219,6 +289,19 @@ python sync.py
 python report.py
 ```
 
+### Data Export
+You can export sync data to CSV files for reporting:
+
+```bash
+# Enable export and run sync
+EXPORT_ENABLED=true python sync.py
+
+# Or use the command line flag
+python sync.py --export
+```
+
+This will create CSV files in the `exports` directory with sync records and statistics.
+
 ### Setting Up Automatic Syncing
 Add a cron job to run the script at regular intervals:
 
@@ -228,6 +311,12 @@ crontab -e
 
 # Add this line to run the sync every hour
 0 * * * * cd /path/to/gitea-kimai-sync && source venv/bin/activate && python sync.py
+```
+
+Or use the included helper script:
+
+```bash
+./run_sync.sh auto
 ```
 
 ## License
