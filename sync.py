@@ -19,6 +19,7 @@ import sqlite3
 import logging
 import requests
 import json
+import re
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from dotenv import load_dotenv
@@ -87,6 +88,15 @@ class EnhancedGiteeKimaiSync:
             logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
             sys.exit(1)
 
+        # Validate URL formats
+        if not self._is_valid_url(GITEA_URL):
+            logger.error(f"Invalid GITEA_URL format: {GITEA_URL}")
+            sys.exit(1)
+
+        if not self._is_valid_url(KIMAI_URL):
+            logger.error(f"Invalid KIMAI_URL format: {KIMAI_URL}")
+            sys.exit(1)
+
         # Check that at least one Kimai authentication method is configured
         if not (KIMAI_TOKEN or (KIMAI_USERNAME and KIMAI_PASSWORD)):
             logger.error("Missing Kimai authentication: need either KIMAI_TOKEN or both KIMAI_USERNAME and KIMAI_PASSWORD")
@@ -96,6 +106,15 @@ class EnhancedGiteeKimaiSync:
             logger.error("REPOS_TO_SYNC is not configured")
             sys.exit(1)
 
+        # Validate repository list
+        if any(not repo.strip() for repo in REPOS_TO_SYNC):
+            logger.warning("Empty repository names found in REPOS_TO_SYNC - these will be skipped")
+
+        # Validate repository names
+        for repo in REPOS_TO_SYNC:
+            if repo.strip() and not self._is_valid_repo_name(repo.strip()):
+                logger.warning(f"Repository name '{repo}' contains potentially unsafe characters")
+
         if self.read_only:
             logger.info("Running in READ-ONLY mode - no changes will be made to Kimai")
 
@@ -104,9 +123,9 @@ class EnhancedGiteeKimaiSync:
         else:
             logger.info("Pull request syncing is DISABLED (issues only)")
 
-        # Validate repository list
-        if any(not repo.strip() for repo in REPOS_TO_SYNC):
-            logger.warning("Empty repository names found in REPOS_TO_SYNC - these will be skipped")
+        # Validate database path
+        if not self._is_valid_file_path(DATABASE_PATH):
+            logger.warning(f"Database path contains potentially unsafe characters: {DATABASE_PATH}")
 
         logger.info("Configuration validated successfully")
 
@@ -204,7 +223,10 @@ class EnhancedGiteeKimaiSync:
                 'Accept': 'application/json'
             }
 
-            url = f"{GITEA_URL}/api/v1/repos/{GITEA_ORGANIZATION}/{repo}/issues"
+            # Sanitize repository name
+            safe_repo = self._sanitize_path_component(repo)
+            safe_org = self._sanitize_path_component(GITEA_ORGANIZATION)
+            url = f"{GITEA_URL}/api/v1/repos/{safe_org}/{safe_repo}/issues"
             params = {
                 'state': 'all',
                 'sort': 'updated',
@@ -307,9 +329,15 @@ class EnhancedGiteeKimaiSync:
 
             # Prepare activity data
             item_type = "PR" if 'pull_request' in issue else "Issue"
-            activity_name = f"[{item_type}] #{issue['number']}: {issue['title']}"
+            # Sanitize title and create activity name
+            safe_title = self._sanitize_activity_name(issue.get('title', 'Untitled'))
+            activity_name = f"[{item_type}] #{issue['number']}: {safe_title}"
+
+            # Sanitize body content
             activity_comment = issue.get('body', '')
-            if len(activity_comment) > 500:
+            if not activity_comment:
+                activity_comment = "No description provided."
+            elif len(activity_comment) > 500:
                 activity_comment = activity_comment[:497] + "..."
 
             activity_data = {
@@ -450,7 +478,7 @@ class EnhancedGiteeKimaiSync:
 
         for repo in REPOS_TO_SYNC:
             repo = repo.strip()
-            if repo:
+            if repo and self._is_valid_repo_name(repo):
                 try:
                     created, updated = self.sync_repository(repo)
                     total_created += created
@@ -529,6 +557,45 @@ class EnhancedGiteeKimaiSync:
             self.session.close()
         if hasattr(self, 'kimai_session'):
             self.kimai_session.close()
+
+    def _is_valid_url(self, url: str) -> bool:
+        """Validate URL format."""
+        if not url:
+            return False
+        pattern = re.compile(
+            r'^https?://'  # http:// or https://
+            r'([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?'  # domain
+            r'(/[a-zA-Z0-9_.-~%&:=+,$#!*?()]*)*/?' # path
+        )
+        return bool(pattern.match(url))
+
+    def _is_valid_repo_name(self, name: str) -> bool:
+        """Validate repository name format."""
+        # Allow alphanumeric, dashes, underscores, and dots
+        pattern = re.compile(r'^[a-zA-Z0-9._-]+$')
+        return bool(pattern.match(name))
+
+    def _is_valid_file_path(self, path: str) -> bool:
+        """Validate file path format."""
+        # Basic check for directory traversal and unsafe characters
+        return '..' not in path and not re.search(r'[<>:"|?*]', path)
+
+    def _sanitize_path_component(self, component: str) -> str:
+        """Sanitize a path component (repo name, org name, etc)."""
+        if not component:
+            return ""
+        # Replace potentially dangerous characters with underscores
+        return re.sub(r'[^a-zA-Z0-9._-]', '_', component)
+
+    def _sanitize_activity_name(self, name: str) -> str:
+        """Sanitize activity name to prevent injection or format issues."""
+        if not name:
+            return "Untitled"
+        # Limit length and remove control characters
+        safe_name = re.sub(r'[\x00-\x1F\x7F]', '', name)
+        if len(safe_name) > 100:  # Reasonable limit for activity names
+            safe_name = safe_name[:97] + "..."
+        return safe_name
 
 def main():
     """Main entry point."""
