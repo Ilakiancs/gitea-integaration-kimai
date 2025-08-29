@@ -22,6 +22,7 @@ import json
 import re
 import time
 import csv
+import argparse
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from dotenv import load_dotenv
@@ -774,16 +775,76 @@ class EnhancedGiteeKimaiSync:
         except Exception as e:
             logger.error(f"Failed to export data: {e}")
 
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Gitea to Kimai Synchronization Tool")
+
+    # Main commands
+    parser.add_argument('--dry-run', action='store_true', help="Run in read-only mode without making changes")
+    parser.add_argument('--stats', action='store_true', help="Show sync statistics without performing sync")
+    parser.add_argument('--export', action='store_true', help="Export sync data to CSV files")
+
+    # Filtering options
+    parser.add_argument('--repos', type=str, help="Comma-separated list of repositories to sync (overrides .env)")
+    parser.add_argument('--include-prs', action='store_true', help="Include pull requests in sync")
+
+    # Advanced options
+    parser.add_argument('--page-size', type=int, help="Number of items per page for API requests")
+    parser.add_argument('--max-pages', type=int, help="Maximum number of pages to fetch per API endpoint")
+    parser.add_argument('--rate-limit', action='store_true', help="Enable API rate limiting")
+    parser.add_argument('--no-rate-limit', action='store_false', dest='rate_limit', help="Disable API rate limiting")
+    parser.add_argument('--verbose', action='store_true', help="Enable verbose output (DEBUG level)")
+
+    return parser.parse_args()
+
 def main():
     """Main entry point."""
+    args = parse_arguments()
     sync = None
+
     try:
         print("Starting Enhanced Gitea to Kimai Sync...")
         print("=" * 60)
 
+        # Set log level based on verbose flag
+        if args.verbose:
+            logging.getLogger().setLevel(logging.DEBUG)
+
+        # Override environment variables with command line arguments
+        if args.dry_run:
+            os.environ['READ_ONLY_MODE'] = 'true'
+
+        if args.include_prs:
+            os.environ['SYNC_PULL_REQUESTS'] = 'true'
+
+        if args.repos:
+            os.environ['REPOS_TO_SYNC'] = args.repos
+
+        if args.rate_limit is not None:
+            os.environ['RATE_LIMIT_ENABLED'] = str(args.rate_limit).lower()
+
+        if args.page_size:
+            os.environ['PAGE_SIZE'] = str(args.page_size)
+
+        if args.max_pages:
+            os.environ['MAX_PAGES'] = str(args.max_pages)
+
+        if args.export:
+            os.environ['EXPORT_ENABLED'] = 'true'
+
         sync = EnhancedGiteeKimaiSync()
-        sync.sync_all()
-        sync.print_statistics()
+
+        if args.stats:
+            # Only show statistics without syncing
+            sync.print_statistics()
+        else:
+            # Perform normal sync operation
+            sync.sync_all()
+            sync.print_statistics()
+
+            # Export if requested
+            if args.export:
+                sync.export_data()
 
     except KeyboardInterrupt:
         logger.info("Sync interrupted by user")
