@@ -12,13 +12,13 @@ The script maintains a SQLite database to track synced items and prevent duplica
 
 ## Features
 
-- ✅ Syncs issues/PRs from multiple Gitea repositories
-- ✅ Creates or updates Kimai activities based on changes
-- ✅ Maintains sync history in SQLite database
-- ✅ Handles authentication for both Gitea and Kimai
-- ✅ Comprehensive logging and error handling
-- ✅ Environment-based configuration
-- ✅ Supports both issues and pull requests
+- Syncs issues/PRs from multiple Gitea repositories
+- Creates or updates Kimai activities based on changes
+- Maintains sync history in SQLite database
+- Handles authentication for both Gitea and Kimai
+- Comprehensive logging and error handling
+- Environment-based configuration
+- Supports both issues and pull requests
 
 ## Requirements
 
