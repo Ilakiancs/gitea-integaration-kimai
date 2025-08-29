@@ -1,6 +1,6 @@
 # Gitea to Kimai Issue Sync
 
-A Python script that synchronizes issues/PRs from Gitea repositories to activities in Kimai time tracking system.
+A comprehensive integration toolkit that synchronizes issues/PRs from Gitea repositories to activities in Kimai time tracking system with advanced features for data management, security, and reliability.
 
 ## Overview
 
@@ -12,6 +12,7 @@ The script maintains a SQLite database to track synced items and prevent duplica
 
 ## Features
 
+### Core Features
 - Syncs issues/PRs from multiple Gitea repositories
 - Creates or updates Kimai activities based on changes
 - Maintains sync history in SQLite database
@@ -19,12 +20,23 @@ The script maintains a SQLite database to track synced items and prevent duplica
 - Comprehensive logging and error handling
 - Environment-based configuration
 - Supports both issues and pull requests
+
+### Performance & Reliability
 - Data caching to reduce API calls
 - Rate limiting to prevent API throttling
 - Pagination support for handling large datasets
-- CSV export functionality for sync data
-- Command-line interface with various options
 - Input validation and sanitization
+- Enhanced error handling with detailed logging
+
+### Data Management
+- CSV export functionality for sync data
+- Backup and restore capabilities
+- Diagnostic tools for troubleshooting
+
+### User Interface
+- Command-line interface with various options
+- Helper scripts for common operations
+- Comprehensive documentation
 
 ## Requirements
 
@@ -249,12 +261,18 @@ gitea-kimai-sync/
 ├── sync.py              # Main sync script
 ├── test_connection.py   # Script to test API connectivity
 ├── report.py            # Script to view sync status and results
+├── diagnose.py          # Diagnostic and troubleshooting tool
+├── backup.py            # Backup and restore utility
 ├── requirements.txt     # Python dependencies
+├── run_sync.sh          # Helper script for common operations
 ├── .env                 # Configuration (not in git)
-├── .env.example         # Configuration template
+├── .env.template        # Comprehensive configuration template
 ├── .gitignore           # Git ignore rules
 ├── README.md            # This file
-└── sync.db              # SQLite database (auto-created)
+├── DIAGNOSTICS.md       # Diagnostic tool documentation
+├── sync.db              # SQLite database (auto-created)
+├── .cache/              # Data cache directory (auto-created)
+└── exports/             # CSV exports directory (auto-created)
 ```
 
 ## Security Notes
@@ -298,9 +316,52 @@ EXPORT_ENABLED=true python sync.py
 
 # Or use the command line flag
 python sync.py --export
+
+# Using the helper script
+./run_sync.sh export
 ```
 
 This will create CSV files in the `exports` directory with sync records and statistics.
+
+### Backup and Restore
+
+The toolkit includes backup and restore capabilities:
+
+```bash
+# Create a backup
+python backup.py backup
+
+# List available backups
+python backup.py list --detail
+
+# Restore from a backup
+python backup.py restore backups/gitea_kimai_backup_20230829_123045.zip
+
+# Using the helper script
+./run_sync.sh backup create    # Create backup
+./run_sync.sh backup list      # List backups
+./run_sync.sh backup restore <file>  # Restore from backup
+```
+
+### Diagnostics
+
+Diagnose issues with the system:
+
+```bash
+# Run basic diagnostics
+python diagnose.py
+
+# Run comprehensive diagnostics
+python diagnose.py --all
+
+# Check specific components
+python diagnose.py --network --api --database
+
+# Using the helper script
+./run_sync.sh diagnose
+```
+
+See `DIAGNOSTICS.md` for detailed information about the diagnostic tools.
 
 ### Setting Up Automatic Syncing
 Add a cron job to run the script at regular intervals:
@@ -318,6 +379,45 @@ Or use the included helper script:
 ```bash
 ./run_sync.sh auto
 ```
+
+## Advanced Features
+
+### Caching
+
+Control the caching system to improve performance:
+
+```bash
+# Clear the cache
+./run_sync.sh cache clear
+
+# Check cache status
+./run_sync.sh cache status
+
+# Disable caching for a run
+python sync.py --no-cache
+```
+
+### Rate Limiting
+
+Configure API rate limiting to prevent throttling:
+
+```bash
+# Set rate limit parameters in .env
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS=10
+RATE_LIMIT_PERIOD=60
+
+# Disable rate limiting for a run
+python sync.py --no-rate-limit
+```
+
+### Validation and Security
+
+The integration includes built-in:
+- Input validation and sanitization
+- Protection against SQL injection
+- Prevention of path traversal attacks
+- API error handling and retry logic
 
 ## License
 
