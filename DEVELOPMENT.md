@@ -40,3 +40,9 @@ mypy src/
 
 - Python 3.8+
 - Required packages from requirements.txt
+## API Documentation
+
+### Endpoints
+
+- `GET /api/v1/status` - System status
+- `POST /api/v1/sync` - Trigger sync
