@@ -30,6 +30,10 @@ show_help() {
     echo "  cache   - Manage cache (clear/status)"
     echo "  backup  - Create/restore backups"
     echo "  diagnose - Run diagnostics"
+    echo "  schedule - Manage scheduler (start/stop/status)"
+    echo "  api     - Manage API server (start/stop)"
+    echo "  validate - Validate configuration"
+    echo "  setup   - Run interactive setup wizard"
     echo "  help    - Show this help message"
     echo ""
     echo "If no command is provided, runs the sync once."
@@ -144,6 +148,60 @@ case "$1" in
     "diagnose")
         echo "Running diagnostics..."
         python3 diagnose.py "$2"
+        ;;
+    "schedule")
+        case "$2" in
+            "start")
+                echo "Starting scheduler..."
+                python3 scheduler.py start "$3"
+                ;;
+            "stop")
+                echo "Stopping scheduler..."
+                python3 scheduler.py stop
+                ;;
+            "status")
+                echo "Scheduler status:"
+                python3 scheduler.py status
+                ;;
+            *)
+                echo "Scheduler commands:"
+                echo "  ./run_sync.sh schedule start [--daemon] - Start the scheduler"
+                echo "  ./run_sync.sh schedule stop             - Stop the scheduler"
+                echo "  ./run_sync.sh schedule status           - Check scheduler status"
+                ;;
+        esac
+        ;;
+    "api")
+        case "$2" in
+            "start")
+                echo "Starting API server..."
+                python3 api.py --host "$3" --port "$4" &
+                echo "API server started in background"
+                ;;
+            "stop")
+                echo "Stopping API server..."
+                pkill -f "python3 api.py"
+                echo "API server stopped"
+                ;;
+            "key")
+                echo "Generating API key..."
+                python3 api.py --generate-key
+                ;;
+            *)
+                echo "API commands:"
+                echo "  ./run_sync.sh api start [host] [port] - Start the API server"
+                echo "  ./run_sync.sh api stop                - Stop the API server"
+                echo "  ./run_sync.sh api key                 - Generate a new API key"
+                ;;
+        esac
+        ;;
+    "validate")
+        echo "Validating configuration..."
+        python3 validate_config.py "$2"
+        ;;
+    "setup")
+        echo "Running setup wizard..."
+        python3 setup.py
         ;;
     "help")
         show_help
