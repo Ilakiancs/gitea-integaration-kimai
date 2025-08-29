@@ -20,6 +20,7 @@ import logging
 import requests
 import json
 import re
+import time
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 from dotenv import load_dotenv
@@ -40,6 +41,10 @@ DATABASE_PATH = os.getenv('DATABASE_PATH', 'sync.db')
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 READ_ONLY_MODE = os.getenv('READ_ONLY_MODE', 'false').lower() == 'true'
 SYNC_PULL_REQUESTS = os.getenv('SYNC_PULL_REQUESTS', 'false').lower() == 'true'
+# Rate limiting settings
+RATE_LIMIT_ENABLED = os.getenv('RATE_LIMIT_ENABLED', 'true').lower() == 'true'
+RATE_LIMIT_REQUESTS = int(os.getenv('RATE_LIMIT_REQUESTS', '10'))
+RATE_LIMIT_PERIOD = int(os.getenv('RATE_LIMIT_PERIOD', '60'))  # in seconds
 
 # Project mapping configuration
 PROJECT_MAPPING = {
@@ -71,6 +76,12 @@ class EnhancedGiteeKimaiSync:
         self.setup_database()
         self.session = requests.Session()
         self.kimai_session = requests.Session()
+        # Rate limiting setup
+        self.rate_limit_enabled = RATE_LIMIT_ENABLED
+        self.rate_limit_requests = RATE_LIMIT_REQUESTS
+        self.rate_limit_period = RATE_LIMIT_PERIOD
+        self.request_timestamps = []
+
         self.authenticate_kimai()
         self.existing_projects = {}
         self.existing_activities = {}
@@ -114,6 +125,12 @@ class EnhancedGiteeKimaiSync:
         for repo in REPOS_TO_SYNC:
             if repo.strip() and not self._is_valid_repo_name(repo.strip()):
                 logger.warning(f"Repository name '{repo}' contains potentially unsafe characters")
+
+        # Log rate limiting configuration
+        if self.rate_limit_enabled:
+            logger.info(f"Rate limiting enabled: {self.rate_limit_requests} requests per {self.rate_limit_period} seconds")
+        else:
+            logger.info("Rate limiting disabled")
 
         if self.read_only:
             logger.info("Running in READ-ONLY mode - no changes will be made to Kimai")
@@ -179,6 +196,7 @@ class EnhancedGiteeKimaiSync:
                 sys.exit(1)
 
             # Test authentication
+            self._apply_rate_limiting()
             response = self.kimai_session.get(f"{KIMAI_URL}/api/version", timeout=10)
             response.raise_for_status()
 
@@ -192,6 +210,7 @@ class EnhancedGiteeKimaiSync:
         """Load existing projects and activities from Kimai."""
         try:
             # Load projects
+            self._apply_rate_limiting()
             response = self.kimai_session.get(f"{KIMAI_URL}/api/projects", timeout=10)
             response.raise_for_status()
             projects = response.json()
@@ -201,6 +220,7 @@ class EnhancedGiteeKimaiSync:
                 logger.debug(f"Loaded project: {project['name']} (ID: {project['id']})")
 
             # Load activities
+            self._apply_rate_limiting()
             response = self.kimai_session.get(f"{KIMAI_URL}/api/activities", timeout=10)
             response.raise_for_status()
             activities = response.json()
@@ -234,6 +254,7 @@ class EnhancedGiteeKimaiSync:
                 'limit': 100
             }
 
+            self._apply_rate_limiting()
             response = self.session.get(url, headers=headers, params=params, timeout=10)
             response.raise_for_status()
 
@@ -287,6 +308,7 @@ class EnhancedGiteeKimaiSync:
                 'visible': True
             }
 
+            self._apply_rate_limiting()
             response = self.kimai_session.post(f"{KIMAI_URL}/api/projects", json=project_data, timeout=10)
             response.raise_for_status()
 
@@ -355,6 +377,7 @@ class EnhancedGiteeKimaiSync:
                     logger.info(f"[READ-ONLY] Would update activity: {activity_name} (ID: {kimai_activity_id})")
                     return True
 
+                self._apply_rate_limiting()
                 response = self.kimai_session.patch(
                     f"{KIMAI_URL}/api/activities/{kimai_activity_id}",
                     json=activity_data,
@@ -380,6 +403,7 @@ class EnhancedGiteeKimaiSync:
                     logger.info(f"[READ-ONLY] Would create activity: {activity_name}")
                     return True
 
+                self._apply_rate_limiting()
                 response = self.kimai_session.post(
                     f"{KIMAI_URL}/api/activities",
                     json=activity_data,
@@ -596,6 +620,29 @@ class EnhancedGiteeKimaiSync:
         if len(safe_name) > 100:  # Reasonable limit for activity names
             safe_name = safe_name[:97] + "..."
         return safe_name
+
+    def _apply_rate_limiting(self):
+        """Apply rate limiting to avoid API throttling."""
+        if not self.rate_limit_enabled:
+            return
+
+        current_time = time.time()
+        # Remove timestamps older than the rate limit period
+        self.request_timestamps = [ts for ts in self.request_timestamps
+                                  if current_time - ts < self.rate_limit_period]
+
+        # If we've hit the rate limit, sleep until we can make another request
+        if len(self.request_timestamps) >= self.rate_limit_requests:
+            oldest_timestamp = self.request_timestamps[0]
+            sleep_time = self.rate_limit_period - (current_time - oldest_timestamp)
+            if sleep_time > 0:
+                logger.debug(f"Rate limit reached. Sleeping for {sleep_time:.2f} seconds")
+                time.sleep(sleep_time)
+                # After sleeping, the oldest timestamp is no longer relevant
+                self.request_timestamps.pop(0)
+
+        # Add the current timestamp to the list
+        self.request_timestamps.append(time.time())
 
 def main():
     """Main entry point."""
