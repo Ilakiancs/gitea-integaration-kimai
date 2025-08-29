@@ -23,7 +23,10 @@ import re
 import time
 import csv
 import argparse
-from datetime import datetime
+import json
+import hashlib
+import pickle
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple, Any
 from dotenv import load_dotenv
 
@@ -55,6 +58,11 @@ MAX_PAGES = int(os.getenv('MAX_PAGES', '10'))  # Maximum number of pages to fetc
 # Export settings
 EXPORT_ENABLED = os.getenv('EXPORT_ENABLED', 'false').lower() == 'true'
 EXPORT_DIR = os.getenv('EXPORT_DIR', 'exports')
+
+# Cache settings
+CACHE_ENABLED = os.getenv('CACHE_ENABLED', 'true').lower() == 'true'
+CACHE_TTL = int(os.getenv('CACHE_TTL', '3600'))  # Default: 1 hour cache lifetime
+CACHE_DIR = os.getenv('CACHE_DIR', '.cache')
 
 # Project mapping configuration
 PROJECT_MAPPING = {
@@ -101,6 +109,13 @@ class EnhancedGiteeKimaiSync:
         self.export_dir = EXPORT_DIR
         if self.export_enabled and not os.path.exists(self.export_dir):
             os.makedirs(self.export_dir)
+
+        # Cache configuration
+        self.cache_enabled = CACHE_ENABLED
+        self.cache_ttl = CACHE_TTL
+        self.cache_dir = CACHE_DIR
+        if self.cache_enabled and not os.path.exists(self.cache_dir):
+            os.makedirs(self.cache_dir)
 
         self.authenticate_kimai()
         self.existing_projects = {}
@@ -157,6 +172,12 @@ class EnhancedGiteeKimaiSync:
             logger.info(f"Data export enabled: saving to '{self.export_dir}' directory")
         else:
             logger.info("Data export disabled")
+
+        # Log cache configuration
+        if self.cache_enabled:
+            logger.info(f"Data caching enabled: TTL {self.cache_ttl}s, dir '{self.cache_dir}'")
+        else:
+            logger.info("Data caching disabled")
 
         if self.read_only:
             logger.info("Running in READ-ONLY mode - no changes will be made to Kimai")
@@ -235,19 +256,43 @@ class EnhancedGiteeKimaiSync:
     def load_existing_kimai_data(self):
         """Load existing projects and activities from Kimai."""
         try:
-            # Load projects with pagination
-            projects = self._fetch_paginated_data("projects")
+            # Try to load from cache first
+            projects_loaded = False
+            activities_loaded = False
 
-            for project in projects:
-                self.existing_projects[project['id']] = project
-                logger.debug(f"Loaded project: {project['name']} (ID: {project['id']})")
+            if self.cache_enabled:
+                projects = self._get_from_cache("kimai_projects")
+                if projects is not None:
+                    for project in projects:
+                        self.existing_projects[project['id']] = project
+                    projects_loaded = True
+                    logger.info(f"Loaded {len(projects)} projects from cache")
 
-            # Load activities with pagination
-            activities = self._fetch_paginated_data("activities")
+                activities = self._get_from_cache("kimai_activities")
+                if activities is not None:
+                    for activity in activities:
+                        self.existing_activities[activity['id']] = activity
+                    activities_loaded = True
+                    logger.info(f"Loaded {len(activities)} activities from cache")
 
-            for activity in activities:
-                self.existing_activities[activity['id']] = activity
-                logger.debug(f"Loaded activity: {activity['name']} (ID: {activity['id']})")
+            # If not in cache, fetch from API
+            if not projects_loaded:
+                projects = self._fetch_paginated_data("projects")
+                for project in projects:
+                    self.existing_projects[project['id']] = project
+                    logger.debug(f"Loaded project: {project['name']} (ID: {project['id']})")
+
+                if self.cache_enabled:
+                    self._save_to_cache("kimai_projects", projects)
+
+            if not activities_loaded:
+                activities = self._fetch_paginated_data("activities")
+                for activity in activities:
+                    self.existing_activities[activity['id']] = activity
+                    logger.debug(f"Loaded activity: {activity['name']} (ID: {activity['id']})")
+
+                if self.cache_enabled:
+                    self._save_to_cache("kimai_activities", activities)
 
             logger.info(f"Loaded {len(self.existing_projects)} projects and {len(self.existing_activities)} activities from Kimai")
 
@@ -258,6 +303,14 @@ class EnhancedGiteeKimaiSync:
     def get_gitea_issues(self, repo: str) -> List[Dict]:
         """Fetch issues from a Gitea repository with pagination support."""
         try:
+            # Try to get from cache first
+            if self.cache_enabled:
+                cache_key = f"gitea_issues_{repo}"
+                cached_items = self._get_from_cache(cache_key)
+                if cached_items is not None:
+                    logger.info(f"Retrieved {len(cached_items)} issues for {repo} from cache")
+                    return cached_items
+
             headers = {
                 'Authorization': f'token {GITEA_TOKEN}',
                 'Accept': 'application/json'
@@ -296,6 +349,10 @@ class EnhancedGiteeKimaiSync:
                     break
 
                 page += 1
+
+            # Save to cache
+            if self.cache_enabled:
+                self._save_to_cache(f"gitea_issues_{repo}", all_items)
 
             if SYNC_PULL_REQUESTS:
                 logger.info(f"Retrieved {len(all_items)} items (issues + PRs) from {repo}")
@@ -717,6 +774,53 @@ class EnhancedGiteeKimaiSync:
         logger.info(f"Retrieved {len(all_items)} total items from {endpoint} endpoint")
         return all_items
 
+    def _get_cache_path(self, key):
+        """Get the filesystem path for a cache key."""
+        # Create a hash of the key to avoid issues with special characters
+        hashed_key = hashlib.md5(key.encode()).hexdigest()
+        return os.path.join(self.cache_dir, f"{hashed_key}.cache")
+
+    def _get_from_cache(self, key):
+        """Get data from cache if it exists and is not expired."""
+        if not self.cache_enabled:
+            return None
+
+        cache_path = self._get_cache_path(key)
+
+        if not os.path.exists(cache_path):
+            return None
+
+        # Check if cache file is expired
+        cache_time = os.path.getmtime(cache_path)
+        cache_age = time.time() - cache_time
+
+        if cache_age > self.cache_ttl:
+            logger.debug(f"Cache for {key} expired (age: {cache_age:.1f}s > TTL: {self.cache_ttl}s)")
+            return None
+
+        try:
+            with open(cache_path, 'rb') as f:
+                data = pickle.load(f)
+                logger.debug(f"Retrieved {key} from cache (age: {cache_age:.1f}s)")
+                return data
+        except Exception as e:
+            logger.warning(f"Failed to read cache for {key}: {e}")
+            return None
+
+    def _save_to_cache(self, key, data):
+        """Save data to cache."""
+        if not self.cache_enabled:
+            return
+
+        cache_path = self._get_cache_path(key)
+
+        try:
+            with open(cache_path, 'wb') as f:
+                pickle.dump(data, f)
+            logger.debug(f"Saved {key} to cache")
+        except Exception as e:
+            logger.warning(f"Failed to write cache for {key}: {e}")
+
     def export_data(self):
         """Export sync data to CSV files."""
         if not self.export_enabled:
@@ -793,6 +897,9 @@ def parse_arguments():
     parser.add_argument('--max-pages', type=int, help="Maximum number of pages to fetch per API endpoint")
     parser.add_argument('--rate-limit', action='store_true', help="Enable API rate limiting")
     parser.add_argument('--no-rate-limit', action='store_false', dest='rate_limit', help="Disable API rate limiting")
+    parser.add_argument('--cache', action='store_true', help="Enable data caching")
+    parser.add_argument('--no-cache', action='store_false', dest='cache', help="Disable data caching")
+    parser.add_argument('--clear-cache', action='store_true', help="Clear all cached data before running")
     parser.add_argument('--verbose', action='store_true', help="Enable verbose output (DEBUG level)")
 
     return parser.parse_args()
@@ -822,6 +929,15 @@ def main():
 
         if args.rate_limit is not None:
             os.environ['RATE_LIMIT_ENABLED'] = str(args.rate_limit).lower()
+
+        if args.cache is not None:
+            os.environ['CACHE_ENABLED'] = str(args.cache).lower()
+
+        if args.clear_cache and os.path.exists(os.getenv('CACHE_DIR', '.cache')):
+            import shutil
+            shutil.rmtree(os.getenv('CACHE_DIR', '.cache'))
+            print("Cache cleared.")
+            os.makedirs(os.getenv('CACHE_DIR', '.cache'))
 
         if args.page_size:
             os.environ['PAGE_SIZE'] = str(args.page_size)
