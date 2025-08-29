@@ -46,6 +46,10 @@ RATE_LIMIT_ENABLED = os.getenv('RATE_LIMIT_ENABLED', 'true').lower() == 'true'
 RATE_LIMIT_REQUESTS = int(os.getenv('RATE_LIMIT_REQUESTS', '10'))
 RATE_LIMIT_PERIOD = int(os.getenv('RATE_LIMIT_PERIOD', '60'))  # in seconds
 
+# Pagination settings
+PAGE_SIZE = int(os.getenv('PAGE_SIZE', '100'))
+MAX_PAGES = int(os.getenv('MAX_PAGES', '10'))  # Maximum number of pages to fetch
+
 # Project mapping configuration
 PROJECT_MAPPING = {
     'tourtree-app': 1,
@@ -81,6 +85,10 @@ class EnhancedGiteeKimaiSync:
         self.rate_limit_requests = RATE_LIMIT_REQUESTS
         self.rate_limit_period = RATE_LIMIT_PERIOD
         self.request_timestamps = []
+
+        # Pagination configuration
+        self.page_size = PAGE_SIZE
+        self.max_pages = MAX_PAGES
 
         self.authenticate_kimai()
         self.existing_projects = {}
@@ -209,21 +217,15 @@ class EnhancedGiteeKimaiSync:
     def load_existing_kimai_data(self):
         """Load existing projects and activities from Kimai."""
         try:
-            # Load projects
-            self._apply_rate_limiting()
-            response = self.kimai_session.get(f"{KIMAI_URL}/api/projects", timeout=10)
-            response.raise_for_status()
-            projects = response.json()
+            # Load projects with pagination
+            projects = self._fetch_paginated_data("projects")
 
             for project in projects:
                 self.existing_projects[project['id']] = project
                 logger.debug(f"Loaded project: {project['name']} (ID: {project['id']})")
 
-            # Load activities
-            self._apply_rate_limiting()
-            response = self.kimai_session.get(f"{KIMAI_URL}/api/activities", timeout=10)
-            response.raise_for_status()
-            activities = response.json()
+            # Load activities with pagination
+            activities = self._fetch_paginated_data("activities")
 
             for activity in activities:
                 self.existing_activities[activity['id']] = activity
@@ -236,7 +238,7 @@ class EnhancedGiteeKimaiSync:
             sys.exit(1)
 
     def get_gitea_issues(self, repo: str) -> List[Dict]:
-        """Fetch issues from a Gitea repository."""
+        """Fetch issues from a Gitea repository with pagination support."""
         try:
             headers = {
                 'Authorization': f'token {GITEA_TOKEN}',
@@ -247,18 +249,36 @@ class EnhancedGiteeKimaiSync:
             safe_repo = self._sanitize_path_component(repo)
             safe_org = self._sanitize_path_component(GITEA_ORGANIZATION)
             url = f"{GITEA_URL}/api/v1/repos/{safe_org}/{safe_repo}/issues"
-            params = {
-                'state': 'all',
-                'sort': 'updated',
-                'order': 'desc',
-                'limit': 100
-            }
 
-            self._apply_rate_limiting()
-            response = self.session.get(url, headers=headers, params=params, timeout=10)
-            response.raise_for_status()
+            all_items = []
+            page = 1
 
-            all_items = response.json()
+            while page <= self.max_pages:
+                params = {
+                    'state': 'all',
+                    'sort': 'updated',
+                    'order': 'desc',
+                    'limit': self.page_size,
+                    'page': page
+                }
+
+                self._apply_rate_limiting()
+                response = self.session.get(url, headers=headers, params=params, timeout=10)
+                response.raise_for_status()
+
+                items = response.json()
+                if not items:
+                    break  # No more items to fetch
+
+                all_items.extend(items)
+                logger.debug(f"Retrieved page {page} with {len(items)} items from {repo}")
+
+                # Check if we received fewer items than the page size, meaning there are no more pages
+                if len(items) < self.page_size:
+                    break
+
+                page += 1
+
             if SYNC_PULL_REQUESTS:
                 logger.info(f"Retrieved {len(all_items)} items (issues + PRs) from {repo}")
             else:
@@ -643,6 +663,37 @@ class EnhancedGiteeKimaiSync:
 
         # Add the current timestamp to the list
         self.request_timestamps.append(time.time())
+
+    def _fetch_paginated_data(self, endpoint, params=None):
+        """Fetch paginated data from Kimai API."""
+        if params is None:
+            params = {}
+
+        all_items = []
+        page = 1
+
+        while page <= self.max_pages:
+            page_params = {**params, 'size': self.page_size, 'page': page}
+
+            self._apply_rate_limiting()
+            response = self.kimai_session.get(f"{KIMAI_URL}/api/{endpoint}", params=page_params, timeout=10)
+            response.raise_for_status()
+
+            items = response.json()
+            if not items:
+                break  # No more items to fetch
+
+            all_items.extend(items)
+            logger.debug(f"Retrieved page {page} with {len(items)} items from {endpoint}")
+
+            # Check if we received fewer items than the page size, meaning there are no more pages
+            if len(items) < self.page_size:
+                break
+
+            page += 1
+
+        logger.info(f"Retrieved {len(all_items)} total items from {endpoint} endpoint")
+        return all_items
 
 def main():
     """Main entry point."""
