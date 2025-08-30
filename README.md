@@ -1,225 +1,63 @@
-# Gitea-Kimai Integration System
+# Gitea-Kimai Integration
 
-A comprehensive integration system for synchronizing data between Gitea (Git hosting) and Kimai (time tracking) platforms.
+bridges the gap between your git workflow and time tracking by automatically syncing issues, commits, and project data between Gitea and Kimai. built for teams that need their development time to reflect in their project management without manual overhead.
 
-## Features
+## what it does
 
-- **Core Sync Engine**: Automated synchronization between Gitea issues and Kimai activities
-- **Data Processing**: Advanced data transformation, validation, and sanitization
-- **Security**: Encryption, checksums, and secure data handling
-- **Monitoring**: Health checks, performance monitoring, and metrics
-- **Web Interface**: Dashboard for monitoring and configuration
-- **API Integration**: RESTful API clients for both Gitea and Kimai
-- **Storage Management**: Backup, caching, and data persistence
-- **Validation**: Schema validation and data integrity checks
+syncs issues from Gitea to Kimai activities, tracks time against the right projects, and keeps everything in sync bidirectionally. handles data transformation, validation, and conflict resolution so you don't have to think about it.
 
-## Project Structure
+## getting started
 
-```
-gitea-integaration-kimai/
-├── src/                          # Source code
-│   ├── core/                     # Core sync engine
-│   │   ├── sync_engine.py       # Main sync engine
-│   │   ├── sync.py              # Sync utilities
-│   │   ├── scheduler.py         # Task scheduling
-│   │   └── task_queue.py        # Task queue management
-│   ├── api/                      # API integration
-│   │   ├── api_client.py        # Generic API client
-│   │   ├── api.py               # API utilities
-│   │   └── webhooks.py          # Webhook handlers
-│   ├── data/                     # Data processing
-│   │   ├── data_compression.py  # Data compression
-│   │   ├── data_encryption.py   # Data encryption
-│   │   ├── data_checksum.py     # Checksum utilities
-│   │   ├── data_serialization.py # Data serialization
-│   │   ├── data_indexing.py     # Data indexing
-│   │   ├── data_diff.py         # Data comparison
-│   │   ├── data_merger.py       # Data merging
-│   │   ├── data_sanitizer.py    # Data sanitization
-│   │   ├── data_validation.py   # Data validation
-│   │   ├── data_export.py       # Data export
-│   │   ├── data_pipeline.py     # Data transformation pipeline
-│   │   └── format_converter.py  # Format conversion
-│   ├── validation/               # Validation utilities
-│   │   ├── validation_rules.py  # Validation rules engine
-│   │   └── schema_validator.py  # Schema validation
-│   ├── storage/                  # Storage management
-│   │   ├── backup_manager.py    # Backup management
-│   │   ├── backup.py            # Backup utilities
-│   │   ├── cache_manager.py     # Cache management
-│   │   └── encryption.py        # Storage encryption
-│   ├── utils/                    # Utility functions
-│   │   ├── error_handler.py     # Error handling
-│   │   ├── logging_enhanced.py  # Enhanced logging
-│   │   ├── retry_handler.py     # Retry logic
-│   │   ├── rate_limiter.py      # Rate limiting
-│   │   ├── notification_system.py # Notification system
-│   │   ├── notifications.py     # Notification utilities
-│   │   ├── diagnose.py          # Diagnostics
-│   │   ├── report.py            # Reporting
-│   │   ├── test_connection.py   # Connection testing
-│   │   ├── user_profiles.py     # User profile management
-│   │   └── migration.py         # Data migration
-│   ├── monitoring/               # Monitoring and health
-│   │   ├── health_check.py      # Health checks
-│   │   ├── performance_monitor.py # Performance monitoring
-│   │   ├── metrics.py           # Metrics collection
-│   │   └── statistics.py        # Statistics
-│   ├── config/                   # Configuration
-│   │   ├── config_manager.py    # Configuration management
-│   │   └── validate_config.py   # Configuration validation
-│   ├── web/                      # Web interface
-│   │   └── web_dashboard.py     # Web dashboard
-│   └── main.py                   # Main entry point
-├── tests/                        # Test files
-│   ├── unit/                     # Unit tests
-│   └── integration/              # Integration tests
-├── docs/                         # Documentation
-│   ├── api/                      # API documentation
-│   ├── user_guide/               # User guides
-│   └── DIAGNOSTICS.md            # Diagnostics guide
-├── scripts/                      # Scripts
-│   └── run_sync.sh              # Sync runner script
-├── examples/                     # Example configurations
-├── requirements.txt              # Python dependencies
-├── setup.py                      # Package setup
-└── README.md                     # This file
-```
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/gitea-kimai-integration.git
-cd gitea-kimai-integration
-```
-
-2. Install dependencies:
 ```bash
 pip install -r requirements.txt
-```
-
-3. Install the package:
-```bash
-pip install -e .
-```
-
-## Configuration
-
-1. Create a configuration file:
-```bash
 cp examples/config.example.json config.json
+# edit config.json with your endpoints
+python src/main.py
 ```
 
-2. Edit the configuration with your Gitea and Kimai credentials:
+## configuration
+
 ```json
 {
   "gitea": {
-    "url": "https://gitea.yourdomain.com",
-    "token": "your_gitea_token",
-    "organization": "your_org"
+    "url": "https://your-gitea-instance.com",
+    "token": "your-gitea-access-token"
   },
   "kimai": {
-    "url": "https://kimai.yourdomain.com",
-    "token": "your_kimai_token"
+    "url": "https://your-kimai-instance.com", 
+    "username": "your-username",
+    "password": "your-password"
   },
   "sync": {
     "interval": 300,
-    "repositories": ["repo1", "repo2"]
+    "batch_size": 50,
+    "retry_attempts": 3
   }
 }
 ```
 
-## Usage
+## using the api
 
-### Basic Usage
+```python
+from src.api.api_client import GiteaKimaiClient
 
-Run the sync system:
-```bash
-python src/main.py
+client = GiteaKimaiClient(config)
+status = client.get_sync_status()
+client.trigger_sync()
 ```
 
-Or use the provided script:
-```bash
-./scripts/run_sync.sh
-```
+## architecture
 
-### Web Dashboard
+core sync engine handles the heavy lifting, data pipeline transforms between systems, storage layer manages caching and persistence, api layer provides rest endpoints and webhooks, monitoring tracks performance and health.
 
-Start the web dashboard:
-```bash
-python src/web/web_dashboard.py
-```
-
-### Testing Connections
-
-Test your configuration:
-```bash
-python src/utils/test_connection.py
-```
-
-### Diagnostics
-
-Run diagnostics:
-```bash
-python src/utils/diagnose.py
-```
-
-## Development
-
-### Running Tests
+## development
 
 ```bash
-# Unit tests
-pytest tests/unit/
-
-# Integration tests
-pytest tests/integration/
-
-# All tests with coverage
-pytest --cov=src tests/
+python -m pytest tests/
+python src/main.py --dev
+python -m src.diagnostics.system_check
 ```
 
-### Code Quality
+## license
 
-```bash
-# Format code
-black src/
-
-# Lint code
-flake8 src/
-
-# Type checking
-mypy src/
-```
-
-## API Documentation
-
-The system provides several APIs:
-
-- **Sync API**: Core synchronization endpoints
-- **Data API**: Data processing and manipulation
-- **Monitoring API**: Health checks and metrics
-- **Webhook API**: Webhook handling for Gitea events
-
-See `docs/api/` for detailed API documentation.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Run the test suite
-6. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For support and questions:
-- Create an issue on GitHub
-- Check the documentation in `docs/`
-- Review the diagnostics guide in `docs/DIAGNOSTICS.md`
+MIT License - see LICENSE file for details.
