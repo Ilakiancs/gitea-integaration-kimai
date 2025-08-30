@@ -1,0 +1,66 @@
+{
+  "gitea": {
+    "url": "https://gitea.yourdomain.com",
+    "token": "your_gitea_api_token_here",
+    "organization": "your_organization",
+    "timeout": 30,
+    "retry_count": 3
+  },
+  "kimai": {
+    "url": "https://kimai.yourdomain.com",
+    "token": "your_kimai_api_token_here",
+    "username": "your_kimai_username",
+    "password": "your_kimai_password",
+    "timeout": 30,
+    "retry_count": 3
+  },
+  "sync": {
+    "interval": 300,
+    "repositories": ["repo1", "repo2", "repo3"],
+    "include_pull_requests": false,
+    "read_only_mode": false,
+    "max_issues_per_repo": 1000
+  },
+  "database": {
+    "path": "sync.db",
+    "backup_enabled": true,
+    "backup_interval": 86400
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "sync.log",
+    "max_size": "10MB",
+    "backup_count": 5
+  },
+  "cache": {
+    "enabled": true,
+    "ttl": 3600,
+    "max_size": 1000
+  },
+  "rate_limiting": {
+    "enabled": true,
+    "requests_per_minute": 60,
+    "burst_size": 10
+  },
+  "notifications": {
+    "enabled": false,
+    "email": {
+      "smtp_server": "smtp.gmail.com",
+      "smtp_port": 587,
+      "username": "your_email@gmail.com",
+      "password": "your_app_password",
+      "recipients": ["admin@yourdomain.com"]
+    }
+  },
+  "web": {
+    "enabled": true,
+    "host": "localhost",
+    "port": 8080,
+    "debug": false
+  },
+  "security": {
+    "encryption_enabled": true,
+    "checksum_validation": true,
+    "data_sanitization": true
+  }
+}
