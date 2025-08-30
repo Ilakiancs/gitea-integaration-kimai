@@ -23,6 +23,7 @@ from web.web_dashboard import start_dashboard
 from api.api import start_api_server
 from monitoring.health_check import HealthMonitor
 from utils.notification_system import NotificationManager
+from cli.security_commands import SecurityCLI
 
 def main():
     """Main entry point for the application."""
@@ -87,6 +88,29 @@ Examples:
     health_parser = subparsers.add_parser('health', help='Check system health')
     health_parser.add_argument('--monitor', action='store_true', help='Start health monitoring')
     
+    # Security command
+    security_parser = subparsers.add_parser('security', help='Security operations')
+    security_parser.add_argument('action', choices=[
+        'create-user', 'authenticate', 'validate-token', 'list-users',
+        'change-password', 'update-role', 'generate-password', 'validate-password',
+        'generate-token', 'validate-config', 'generate-config', 'health-check'
+    ], help='Security action')
+    security_parser.add_argument('--username', help='Username')
+    security_parser.add_argument('--email', help='Email address')
+    security_parser.add_argument('--password', help='Password')
+    security_parser.add_argument('--role', choices=['viewer', 'operator', 'admin', 'super_admin'], help='User role')
+    security_parser.add_argument('--user-id', help='User ID')
+    security_parser.add_argument('--old-password', help='Old password')
+    security_parser.add_argument('--new-password', help='New password')
+    security_parser.add_argument('--token', help='JWT token')
+    security_parser.add_argument('--save-token', help='Save token to file')
+    security_parser.add_argument('--length', type=int, help='Length for generated items')
+    security_parser.add_argument('--no-symbols', action='store_true', help='Exclude symbols from password')
+    security_parser.add_argument('--type', choices=['secure', 'api', 'session', 'verification', 'recovery'], help='Token type')
+    security_parser.add_argument('--prefix', help='API key prefix')
+    security_parser.add_argument('--config-file', help='Config file path')
+    security_parser.add_argument('--output-file', help='Output file path')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -110,6 +134,8 @@ Examples:
             run_api(args)
         elif args.command == 'health':
             run_health(args)
+        elif args.command == 'security':
+            run_security(args)
         else:
             print(f"Unknown command: {args.command}")
             parser.print_help()
@@ -222,6 +248,72 @@ def run_health(args):
         print("Checking system health...")
         status = monitor.check_all()
         monitor.print_status(status)
+
+
+def run_security(args):
+    """Run security operations."""
+    cli = SecurityCLI()
+    
+    # Map arguments to the expected format
+    class Args:
+        pass
+    
+    cli_args = Args()
+    
+    # Set attributes based on the action
+    if args.action == 'create-user':
+        cli_args.username = args.username
+        cli_args.email = args.email
+        cli_args.password = args.password
+        cli_args.role = args.role or 'viewer'
+    elif args.action == 'authenticate':
+        cli_args.username = args.username
+        cli_args.password = args.password
+        cli_args.save_token = args.save_token
+    elif args.action == 'validate-token':
+        cli_args.token = args.token
+    elif args.action == 'change-password':
+        cli_args.user_id = args.user_id
+        cli_args.old_password = args.old_password
+        cli_args.new_password = args.new_password
+    elif args.action == 'update-role':
+        cli_args.user_id = args.user_id
+        cli_args.role = args.role
+    elif args.action == 'generate-password':
+        cli_args.length = args.length or 16
+        cli_args.no_symbols = args.no_symbols
+    elif args.action == 'validate-password':
+        cli_args.password = args.password
+    elif args.action == 'generate-token':
+        cli_args.type = args.type or 'secure'
+        cli_args.length = args.length or 32
+        cli_args.prefix = args.prefix or 'api'
+    elif args.action == 'validate-config':
+        cli_args.config_file = args.config_file or 'security_config.json'
+    elif args.action == 'generate-config':
+        cli_args.output_file = args.output_file or 'security_config.json'
+    
+    # Execute the command
+    command_map = {
+        'create-user': cli.create_user,
+        'authenticate': cli.authenticate_user,
+        'validate-token': cli.validate_token,
+        'list-users': cli.list_users,
+        'change-password': cli.change_password,
+        'update-role': cli.update_user_role,
+        'generate-password': cli.generate_password,
+        'validate-password': cli.validate_password,
+        'generate-token': cli.generate_token,
+        'validate-config': cli.validate_config,
+        'generate-config': cli.generate_config,
+        'health-check': cli.health_check
+    }
+    
+    if args.action in command_map:
+        return command_map[args.action](cli_args)
+    else:
+        print(f"Unknown security action: {args.action}")
+        return 1
 
 if __name__ == "__main__":
     main()
