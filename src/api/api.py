@@ -26,6 +26,11 @@ import jwt
 from dotenv import load_dotenv
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
+# Import security modules
+from security.security import SecurityManager, SecurityConfig, Permission, Role
+from security.middleware import SecurityMiddleware
+from security.utils import SecurityChecker, RateLimiter, SecurityAuditor
+
 # Load environment variables
 load_dotenv()
 
@@ -38,6 +43,10 @@ API_SECRET_KEY = os.getenv('API_SECRET_KEY', '')
 API_TOKEN_EXPIRY = int(os.getenv('API_TOKEN_EXPIRY', '86400'))  # 24 hours in seconds
 API_REQUIRE_AUTH = os.getenv('API_REQUIRE_AUTH', 'true').lower() == 'true'
 API_ALLOWED_ORIGINS = os.getenv('API_ALLOWED_ORIGINS', '*')
+
+# Security configuration
+SECURITY_ENABLED = os.getenv('SECURITY_ENABLED', 'true').lower() == 'true'
+SECURITY_CONFIG_FILE = os.getenv('SECURITY_CONFIG_FILE', 'security_config.json')
 
 # Database configuration
 DATABASE_PATH = os.getenv('DATABASE_PATH', 'sync.db')
@@ -76,13 +85,20 @@ def require_auth(func):
             if scheme.lower() != 'bearer':
                 raise ApiError("Authorization scheme must be Bearer", 401)
 
-            # Verify token
-            try:
-                jwt.decode(token, API_SECRET_KEY, algorithms=['HS256'])
-            except jwt.ExpiredSignatureError:
-                raise ApiError("Token has expired", 401)
-            except jwt.InvalidTokenError:
-                raise ApiError("Invalid token", 401)
+            # Use security manager if available
+            if hasattr(self, 'security_manager') and self.security_manager:
+                user = self.security_manager.validate_token(token)
+                if not user:
+                    raise ApiError("Invalid or expired token", 401)
+                self.current_user = user
+            else:
+                # Fallback to simple JWT verification
+                try:
+                    jwt.decode(token, API_SECRET_KEY, algorithms=['HS256'])
+                except jwt.ExpiredSignatureError:
+                    raise ApiError("Token has expired", 401)
+                except jwt.InvalidTokenError:
+                    raise ApiError("Invalid token", 401)
 
             return func(self, *args, **kwargs)
         except ValueError:
@@ -92,6 +108,24 @@ def require_auth(func):
 
 class GiteaKimaiApiHandler(BaseHTTPRequestHandler):
     """HTTP request handler for the Gitea-Kimai API."""
+
+    def __init__(self, *args, **kwargs):
+        # Initialize security components
+        self.security_manager = None
+        self.security_middleware = None
+        self.rate_limiter = RateLimiter()
+        self.security_auditor = SecurityAuditor()
+        
+        # Initialize security if enabled
+        if SECURITY_ENABLED:
+            try:
+                from security.security import create_security_manager
+                self.security_manager = create_security_manager(SECURITY_CONFIG_FILE)
+                self.security_middleware = SecurityMiddleware(self.security_manager)
+            except Exception as e:
+                logger.warning(f"Failed to initialize security manager: {e}")
+        
+        super().__init__(*args, **kwargs)
 
     def _parse_path(self):
         """Parse the request path to extract API endpoint."""
@@ -183,6 +217,14 @@ class GiteaKimaiApiHandler(BaseHTTPRequestHandler):
 
             if path == '/auth':
                 self._handle_auth(body)
+            elif path == '/auth/login':
+                self._handle_login(body)
+            elif path == '/auth/register':
+                self._handle_register(body)
+            elif path == '/auth/logout':
+                self._handle_logout(body)
+            elif path == '/users':
+                self._handle_create_user(body)
             elif path == '/sync/trigger':
                 self._handle_trigger_sync(body)
             else:
@@ -369,6 +411,206 @@ class GiteaKimaiApiHandler(BaseHTTPRequestHandler):
             'expires_in': API_TOKEN_EXPIRY,
             'token_type': 'Bearer'
         })
+
+    def _handle_login(self, body):
+        """Handle login endpoint with security manager."""
+        if not body or 'username' not in body or 'password' not in body:
+            raise ApiError("Username and password are required", 400)
+
+        username = body['username']
+        password = body['password']
+        
+        # Get client IP for rate limiting and auditing
+        client_ip = self._get_client_ip()
+        
+        # Check rate limiting
+        if not self.rate_limiter.is_allowed(f"login_{client_ip}", max_attempts=5, window_minutes=15):
+            self.security_auditor.log_login_attempt(username, False, client_ip)
+            raise ApiError("Too many login attempts. Please try again later.", 429)
+        
+        if not self.security_manager:
+            raise ApiError("Security manager not available", 500)
+        
+        try:
+            # Authenticate user
+            token = self.security_manager.authenticate_user(username, password, client_ip)
+            
+            if token:
+                # Log successful login
+                self.security_auditor.log_login_attempt(username, True, client_ip)
+                
+                # Get user info
+                user_info = self.security_manager.get_user_info(token.token)
+                
+                self._send_response({
+                    'status': 'success',
+                    'token': token.token,
+                    'expires_at': token.expires_at.isoformat(),
+                    'user': user_info
+                })
+            else:
+                # Log failed login
+                self.security_auditor.log_login_attempt(username, False, client_ip)
+                raise ApiError("Invalid credentials", 401)
+                
+        except Exception as e:
+            logger.error(f"Login error: {e}")
+            self.security_auditor.log_login_attempt(username, False, client_ip)
+            raise ApiError("Authentication failed", 401)
+
+    def _handle_register(self, body):
+        """Handle user registration endpoint."""
+        if not body or 'username' not in body or 'password' not in body or 'email' not in body:
+            raise ApiError("Username, password, and email are required", 400)
+
+        username = body['username']
+        password = body['password']
+        email = body['email']
+        role = body.get('role', 'viewer')
+        
+        # Validate inputs
+        if not SecurityChecker.is_valid_email(email):
+            raise ApiError("Invalid email format", 400)
+        
+        username_validation = SecurityChecker.validate_username(username)
+        if not username_validation['is_valid']:
+            raise ApiError(f"Invalid username: {username_validation['errors'][0]}", 400)
+        
+        if not self.security_manager:
+            raise ApiError("Security manager not available", 500)
+        
+        try:
+            # Create user
+            user = self.security_manager.create_user(
+                username=username,
+                email=email,
+                password=password,
+                role=Role(role)
+            )
+            
+            self._send_response({
+                'status': 'success',
+                'message': 'User created successfully',
+                'user_id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role.value
+            })
+            
+        except ValueError as e:
+            raise ApiError(str(e), 400)
+        except Exception as e:
+            logger.error(f"Registration error: {e}")
+            raise ApiError("Registration failed", 500)
+
+    def _handle_logout(self, body):
+        """Handle logout endpoint."""
+        auth_header = self.headers.get('Authorization')
+        if not auth_header:
+            raise ApiError("Authorization header required", 401)
+        
+        try:
+            scheme, token = auth_header.split(' ', 1)
+            if scheme.lower() != 'bearer':
+                raise ApiError("Authorization scheme must be Bearer", 401)
+            
+            if self.security_manager:
+                # Revoke token
+                self.security_manager.revoke_token(token)
+                
+                # Log logout
+                if hasattr(self, 'current_user'):
+                    self.security_auditor.log_security_event('LOGOUT', {
+                        'user_id': self.current_user.id,
+                        'username': self.current_user.username
+                    })
+            
+            self._send_response({
+                'status': 'success',
+                'message': 'Logged out successfully'
+            })
+            
+        except ValueError:
+            raise ApiError("Invalid Authorization header format", 401)
+        except Exception as e:
+            logger.error(f"Logout error: {e}")
+            raise ApiError("Logout failed", 500)
+
+    def _handle_create_user(self, body):
+        """Handle user creation endpoint (admin only)."""
+        if not body or 'username' not in body or 'password' not in body or 'email' not in body:
+            raise ApiError("Username, password, and email are required", 400)
+
+        username = body['username']
+        password = body['password']
+        email = body['email']
+        role = body.get('role', 'viewer')
+        
+        # Check if current user has admin permissions
+        if not hasattr(self, 'current_user'):
+            raise ApiError("Authentication required", 401)
+        
+        if not self.security_manager.check_permission(self.current_user.token, Permission.ADMIN):
+            raise ApiError("Admin permission required", 403)
+        
+        # Validate inputs
+        if not SecurityChecker.is_valid_email(email):
+            raise ApiError("Invalid email format", 400)
+        
+        username_validation = SecurityChecker.validate_username(username)
+        if not username_validation['is_valid']:
+            raise ApiError(f"Invalid username: {username_validation['errors'][0]}", 400)
+        
+        try:
+            # Create user
+            user = self.security_manager.create_user(
+                username=username,
+                email=email,
+                password=password,
+                role=Role(role)
+            )
+            
+            # Log user creation
+            self.security_auditor.log_configuration_change(
+                self.current_user.id,
+                'USER_CREATION',
+                f"Created user {username} with role {role}"
+            )
+            
+            self._send_response({
+                'status': 'success',
+                'message': 'User created successfully',
+                'user_id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'role': user.role.value
+            })
+            
+        except ValueError as e:
+            raise ApiError(str(e), 400)
+        except Exception as e:
+            logger.error(f"User creation error: {e}")
+            raise ApiError("User creation failed", 500)
+
+    def _get_client_ip(self):
+        """Get client IP address from request headers."""
+        headers_to_check = [
+            'X-Forwarded-For',
+            'X-Real-IP',
+            'X-Client-IP',
+            'X-Forwarded',
+            'X-Cluster-Client-IP',
+            'Forwarded-For',
+            'Forwarded'
+        ]
+        
+        for header in headers_to_check:
+            if header in self.headers:
+                ip = self.headers[header].split(',')[0].strip()
+                if SecurityChecker.is_safe_ip_address(ip):
+                    return ip
+        
+        return 'unknown'
 
     @require_auth
     def _handle_trigger_sync(self, body):
