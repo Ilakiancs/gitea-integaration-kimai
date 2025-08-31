@@ -46,3 +46,10 @@ mypy src/
 
 - `GET /api/v1/status` - System status
 - `POST /api/v1/sync` - Trigger sync
+## Contributing
+
+### Pull Requests
+
+1. Fork the repository
+2. Create feature branch
+3. Submit pull request
