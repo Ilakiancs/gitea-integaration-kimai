@@ -458,8 +458,11 @@ class LogFilter(logging.Filter):
         
         return True
 
-def setup_logging(config: Dict[str, Any]) -> LogManager:
+def setup_logging(config: Dict[str, Any] = None) -> LogManager:
     """Setup logging based on configuration."""
+    if config is None:
+        config = {}
+        
     log_dir = config.get('log_dir', 'logs')
     log_level = config.get('log_level', 'INFO')
     
