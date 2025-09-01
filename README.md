@@ -4,7 +4,7 @@ bridges the gap between your git workflow and time tracking by automatically syn
 
 ## what it does
 
-syncs issues from Gitea to Kimai activities, tracks time against the right projects, and keeps everything in sync bidirectionally. handles data transformation, validation, and conflict resolution so you don't have to think about it.
+syncs issues from Gitea to Kimai activities, tracks time against the right projects, and keeps everything in sync bidirectionally. handles data transformation, validation, and conflict resolution automatically.
 
 ## getting started
 
