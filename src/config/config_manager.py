@@ -27,6 +27,7 @@ class GiteaConfig:
     password: Optional[str] = None
     verify_ssl: bool = True
     timeout: int = 30
+    max_retries: int = 3
 
 @dataclass
 class KimaiConfig:
