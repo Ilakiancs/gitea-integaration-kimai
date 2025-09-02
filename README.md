@@ -56,6 +56,7 @@ core sync engine handles the heavy lifting, data pipeline transforms between sys
 python -m pytest tests/
 python src/main.py --dev
 python -m src.diagnostics.system_check
+python main.py test
 ```
 
 ## license
