@@ -46,6 +46,7 @@ class GiteaKimaiClient:
         self.username = username
         self.password = password
         self.session = requests.Session()
+        self.session.timeout = 30
 
         # If token is provided, use it immediately
         if self.token:
