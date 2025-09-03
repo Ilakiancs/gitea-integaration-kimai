@@ -29,6 +29,7 @@ from plugins import plugin_manager
 from realtime import start_realtime_sync, stop_realtime_sync
 from multitenant import tenant_manager, TenantType, TenantStatus
 from graphql import create_graphql_api, shutdown_graphql_api
+import signal
 
 def main():
     """Main entry point for the application."""
