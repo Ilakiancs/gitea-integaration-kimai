@@ -58,3 +58,7 @@ class SimpleCache:
             del self.cache[key]
         
         return len(expired_keys)
+    
+    def size(self) -> int:
+        """Get cache size."""
+        return len(self.cache)
