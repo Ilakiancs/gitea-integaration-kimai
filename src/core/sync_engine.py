@@ -19,6 +19,7 @@ import hashlib
 import sqlite3
 from pathlib import Path
 import requests
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
