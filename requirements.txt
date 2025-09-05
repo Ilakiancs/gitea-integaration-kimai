@@ -26,3 +26,4 @@ alembic==1.12.0
 redis==4.6.0
 websockets==11.0.3
 httpx==0.24.1
+psutil==5.9.5
