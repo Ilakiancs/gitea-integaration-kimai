@@ -51,3 +51,8 @@ config.json
 
 # Logs
 logs/
+*.log
+
+# Temp files
+tmp/
+temp/
