@@ -18,7 +18,7 @@ def read_requirements():
 
 setup(
     name="gitea-kimai-integration",
-    version="1.0.0",
+    version="1.0.1",
     author="Your Name",
     author_email="your.email@example.com",
     description="A comprehensive integration system for synchronizing data between Gitea and Kimai",
