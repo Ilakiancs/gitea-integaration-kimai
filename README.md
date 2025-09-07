@@ -48,7 +48,7 @@ client.trigger_sync()
 
 ## architecture
 
-core sync engine handles the heavy lifting, data pipeline transforms between systems, storage layer manages caching and persistence, api layer provides rest endpoints and webhooks, monitoring tracks performance and health.
+core sync engine handles the heavy lifting, data pipeline transforms between systems, storage layer manages caching and persistence, api layer provides rest endpoints and webhooks, monitoring tracks performance and health, error handling ensures robust operation.
 
 ## development
 
