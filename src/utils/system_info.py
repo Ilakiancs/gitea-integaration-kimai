@@ -28,5 +28,6 @@ def get_resource_usage() -> Dict[str, Any]:
         'cpu_percent': cpu,
         'memory_percent': memory.percent,
         'memory_used': memory.used,
-        'memory_available': memory.available
+        'memory_available': memory.available,
+        'disk_usage': psutil.disk_usage('/').percent
     }
