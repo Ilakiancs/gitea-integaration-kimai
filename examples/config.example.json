@@ -57,7 +57,8 @@
     "enabled": true,
     "host": "localhost",
     "port": 8080,
-    "debug": false
+    "debug": false,
+    "cors_enabled": true
   },
   "security": {
     "encryption_enabled": true,
