@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # run_sync.sh - Script to run Gitea to Kimai synchronization
 # Usage: ./run_sync.sh [test|sync|report|auto]
