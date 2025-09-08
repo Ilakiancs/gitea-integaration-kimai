@@ -180,10 +180,10 @@ python main.py api --port 5000
 If you get import errors, make sure you're using the new import paths:
 
 ```python
-# ❌ Old way (will fail)
+# Old way (will fail)
 from sync import EnhancedGiteeKimaiSync
 
-# ✅ New way
+# New way
 from src.core.sync import EnhancedGiteeKimaiSync
 ```
 
