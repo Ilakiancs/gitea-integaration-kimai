@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2025-09-08
+
+### Added
+- JSON logger dependency for structured logging
+- Cache keys method for debugging
+- CORS configuration option
+- Disk usage monitoring to system info
+- Project changelog
+
+### Changed
+- Enhanced script error handling
+
 ## [1.0.1] - 2025-09-06
 
 ### Added
