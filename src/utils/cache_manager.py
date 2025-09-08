@@ -62,3 +62,7 @@ class SimpleCache:
     def size(self) -> int:
         """Get cache size."""
         return len(self.cache)
+    
+    def keys(self) -> list:
+        """Get all cache keys."""
+        return list(self.cache.keys())
