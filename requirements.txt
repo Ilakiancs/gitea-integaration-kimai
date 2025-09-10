@@ -13,3 +13,15 @@ certifi==2023.7.22
 six==1.16.0
 PyJWT==2.8.0
 cryptography==41.0.7
+aiohttp==3.8.5
+aioredis==2.0.1
+asyncpg==0.28.0
+fastapi==0.103.0
+uvicorn==0.23.2
+strawberry-graphql==0.202.0
+pydantic==2.3.0
+sqlalchemy==2.0.20
+alembic==1.12.0
+redis==4.6.0
+websockets==11.0.3
+httpx==0.24.1
