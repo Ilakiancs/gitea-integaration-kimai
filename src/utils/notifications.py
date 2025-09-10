@@ -140,11 +140,11 @@ class NotificationManager:
         timestamp = data['timestamp']
 
         if level == 'ERROR':
-            prefix = "🔴 ERROR"
+            prefix = "ERROR"
         elif level == 'WARNING':
-            prefix = "🟠 WARNING"
+            prefix = "WARNING"
         else:
-            prefix = "🔵 INFO"
+            prefix = "INFO"
 
         print(f"\n{prefix} - {timestamp}")
         print(f"Title: {title}")
