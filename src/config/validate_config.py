@@ -90,11 +90,11 @@ VALIDATION_RULES = {
 def print_status(message, status):
     """Print a status message with color."""
     if status == "OK":
-        print(f"✓ {message}")
+        print(f"PASS {message}")
     elif status == "WARNING":
-        print(f"⚠ {message}")
+        print(f"WARN {message}")
     elif status == "ERROR":
-        print(f"✗ {message}")
+        print(f"FAIL {message}")
     else:
         print(f"  {message}")
 
