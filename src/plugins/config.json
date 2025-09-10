@@ -1,0 +1,136 @@
+{
+  "plugin_directories": [
+    "src/plugins/examples",
+    "plugins"
+  ],
+  "global_settings": {
+    "auto_load_enabled": true,
+    "plugin_timeout": 30,
+    "max_concurrent_plugins": 10,
+    "enable_plugin_metrics": true
+  },
+  "issue_classifier": {
+    "enabled": true,
+    "bug_keywords": [
+      "bug", "error", "exception", "crash", "fail", "broken", "issue",
+      "problem", "incorrect", "wrong", "not working", "malfunction",
+      "defect", "fault", "glitch", "regression"
+    ],
+    "feature_keywords": [
+      "feature", "enhancement", "improvement", "add", "implement",
+      "support", "new", "request", "suggestion", "proposal",
+      "functionality", "capability", "extend"
+    ],
+    "urgent_keywords": [
+      "urgent", "critical", "blocking", "production", "outage",
+      "down", "security", "vulnerability", "data loss", "emergency",
+      "hotfix", "immediate"
+    ],
+    "documentation_keywords": [
+      "docs", "documentation", "readme", "guide", "tutorial",
+      "help", "instructions", "manual", "wiki", "comment",
+      "example", "reference"
+    ],
+    "auto_assign_labels": true,
+    "confidence_threshold": 0.7,
+    "priority_mapping": {
+      "critical": "priority-critical",
+      "high": "priority-high",
+      "medium": "priority-medium",
+      "low": "priority-low"
+    }
+  },
+  "notification_plugins": {
+    "slack_notifier": {
+      "enabled": false,
+      "webhook_url": "",
+      "channel": "#gitea-kimai-sync",
+      "notify_on": ["sync_complete", "sync_error", "new_issues"]
+    },
+    "email_notifier": {
+      "enabled": false,
+      "smtp_server": "smtp.gmail.com",
+      "smtp_port": 587,
+      "username": "",
+      "password": "",
+      "recipients": [],
+      "notify_on": ["sync_error", "critical_issues"]
+    }
+  },
+  "transformer_plugins": {
+    "data_sanitizer": {
+      "enabled": true,
+      "remove_sensitive_data": true,
+      "sanitize_patterns": [
+        "password",
+        "token",
+        "secret",
+        "key",
+        "credential"
+      ],
+      "replacement_text": "[REDACTED]"
+    },
+    "markdown_processor": {
+      "enabled": true,
+      "convert_to_html": false,
+      "strip_html_tags": true,
+      "preserve_links": true
+    }
+  },
+  "validation_plugins": {
+    "schema_validator": {
+      "enabled": true,
+      "strict_mode": false,
+      "required_fields": {
+        "issue": ["id", "title", "state", "created_at"],
+        "pull_request": ["id", "title", "state", "base", "head"]
+      },
+      "field_types": {
+        "id": "integer",
+        "title": "string",
+        "state": "string",
+        "created_at": "datetime"
+      }
+    }
+  },
+  "external_service_plugins": {
+    "jira_sync": {
+      "enabled": false,
+      "server_url": "",
+      "username": "",
+      "api_token": "",
+      "project_key": "",
+      "sync_direction": "bidirectional"
+    },
+    "trello_sync": {
+      "enabled": false,
+      "api_key": "",
+      "token": "",
+      "board_id": "",
+      "sync_as_cards": true
+    }
+  },
+  "plugin_hooks": {
+    "pre_sync": [
+      "data_sanitizer",
+      "schema_validator"
+    ],
+    "post_sync": [
+      "slack_notifier",
+      "email_notifier"
+    ],
+    "issue_processing": [
+      "issue_classifier",
+      "markdown_processor"
+    ],
+    "error_handling": [
+      "email_notifier"
+    ]
+  },
+  "development": {
+    "auto_reload": true,
+    "debug_mode": false,
+    "log_plugin_calls": true,
+    "plugin_isolation": true
+  }
+}
