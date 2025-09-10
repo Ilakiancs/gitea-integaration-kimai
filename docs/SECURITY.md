@@ -12,14 +12,14 @@ The Enhanced Security Module provides comprehensive security features for the Gi
 - **Password Security**: Advanced password hashing with PBKDF2 and strength validation
 - **Session Management**: Configurable session timeouts and token expiry
 
-### 🛡️ Security Features
+### Security Features
 - **Rate Limiting**: Protection against brute force attacks
 - **Audit Logging**: Comprehensive security event logging
 - **Input Validation**: Sanitization and validation of user inputs
 - **IP Address Tracking**: Client IP tracking for security monitoring
 - **Configuration Validation**: Security configuration validation and recommendations
 
-### 🔧 Management Tools
+### Management Tools
 - **CLI Interface**: Command-line tools for security management
 - **Configuration Management**: Secure configuration generation and validation
 - **Health Checks**: Security posture assessment and recommendations
