@@ -23,14 +23,14 @@ def print_directory_tree(directory, prefix="", max_depth=3, current_depth=0):
     """Print a tree representation of the directory structure."""
     if current_depth > max_depth:
         return
-    
+
     items = sorted(directory.iterdir(), key=lambda x: (x.is_file(), x.name.lower()))
-    
+
     for i, item in enumerate(items):
         is_last = i == len(items) - 1
         current_prefix = "└── " if is_last else "├── "
         next_prefix = "    " if is_last else "│   "
-        
+
         if item.is_file():
             size = get_file_info(item)
             print(f"{prefix}{current_prefix}{item.name} ({size})")
@@ -42,22 +42,22 @@ def print_directory_tree(directory, prefix="", max_depth=3, current_depth=0):
 def main():
     """Main function to display project structure."""
     project_root = Path(__file__).parent.parent
-    
+
     print("=" * 60)
     print("GITEA TO KIMAI INTEGRATION - PROJECT STRUCTURE")
     print("=" * 60)
     print()
-    
-    print("📁 Project Root:")
+
+    print("Project Root:")
     print_directory_tree(project_root, max_depth=2)
-    
+
     print("\n" + "=" * 60)
-    print("📋 MODULE DESCRIPTIONS")
+    print("MODULE DESCRIPTIONS")
     print("=" * 60)
-    
+
     modules = {
         "src/core/": "Core synchronization and task management",
-        "src/api/": "API handling and webhook management", 
+        "src/api/": "API handling and webhook management",
         "src/data/": "Data processing and manipulation",
         "src/security/": "Security and authentication",
         "src/utils/": "Utility functions and helpers",
@@ -67,15 +67,15 @@ def main():
         "src/monitoring/": "System monitoring and metrics",
         "src/storage/": "Data storage and caching"
     }
-    
+
     for module, description in modules.items():
         module_path = project_root / module
         if module_path.exists():
             file_count = len(list(module_path.glob("*.py")))
-            print(f"📂 {module:<20} {description:<40} ({file_count} files)")
-    
+            print(f"{module:<20} {description:<40} ({file_count} files)")
+
     print("\n" + "=" * 60)
-    print("🚀 QUICK START")
+    print("QUICK START")
     print("=" * 60)
     print()
     print("To get started with the organized project:")
